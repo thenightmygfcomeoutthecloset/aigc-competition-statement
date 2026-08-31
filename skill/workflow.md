@@ -1,6 +1,6 @@
 ﻿# Workflow — 详细阶段说明
 
-> 本文档是 skill/SKILL.md 中流程概览的展开版本。
+> 本文档是仓库根目录 `SKILL.md` 中流程概览的展开版本。
 
 ---
 
@@ -116,17 +116,7 @@
    (masterpiece, best quality:1.2), [风格], [主体], [场景], [光影], [色彩], [构图约束]
    ```
 2. 根据画面排除元素生成负向 Prompt
-3. 仅在用户确认了具体工具后，提供典型参数**范围**作为参考（不写入文档）
-
-**工具参数参考范围（仅供参考，不填入文档）**：
-
-| 工具 | 参数范围 |
-|---|---|
-| SDXL (ComfyUI/WebUI) | Steps: 20–40, CFG: 5–9, 分辨率: 1024×1024 |
-| SD 1.5 | Steps: 20–35, CFG: 6–9, 分辨率: 512×768 |
-| Midjourney | --ar 2:3 或 1:1, --stylize 50–300 |
-| Flux | Steps: 15–30, CFG: 1–4 |
-| ChatGPT DALL-E | 无外露参数 |
+3. 不根据工具名称自动补充参数范围；若用户需要参数建议，将其与实际创作记录完全分开。
 
 **不允许**：
 - 把复现 Prompt 写成"原始 Prompt"
@@ -142,15 +132,14 @@
 **输入**：前五阶段所有输出 + 选定模板
 
 **模板选择**：
-- 大广赛 → `templates/competition-statement.md`（大广赛版本）
-- 新媒体节 → `templates/competition-statement.md`（新媒体节版本）
-- 学院奖 → `templates/competition-statement.md`（学院奖版本）
-- 其他 → `templates/competition-statement.md`（通用版本）
+- 所有赛事均使用 `templates/competition-statement.md` 通用模板
+- 找到官方要求时，依据要求调整字段和篇幅
+- 未找到官方要求时，保留 Generic Draft Mode 警示
 
 **操作**：
 1. 按模板结构填充内容
 2. 严格遵守 Evidence Level 措辞规范
-3. 生成 python-docx Word 文档
+3. 使用当前 Agent 环境可用的文档工具生成 `.docx`
 
 **格式要求**：
 - 所有文字使用 Word 标准正文样式，标题手动加粗
@@ -185,7 +174,7 @@
 
 **操作**：
 1. 导出 Word 文件，命名：`{作品名}_{赛事简称}_AIGC说明书.docx`
-2. 清空 Word 文件 `core_properties`（作者、公司、修订记录等元数据）
+2. 清空 Word 文件作者、修改人、公司、自定义属性和修订会话标识等元数据
 3. 检查是否需要打包：
    - 按赛事要求决定是否打 ZIP
    - ZIP 内容：说明书 + 作品原图 + 赛事要求的其他文件

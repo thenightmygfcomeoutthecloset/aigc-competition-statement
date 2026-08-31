@@ -46,4 +46,4 @@ NEVER write: "当时使用的原始 Prompt 为……"
 
 ## Full Specification
 
-See skill/SKILL.md, skill/workflow.md, skill/safety.md in this repository.
+See SKILL.md, skill/workflow.md, and skill/safety.md in this repository.

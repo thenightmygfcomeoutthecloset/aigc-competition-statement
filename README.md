@@ -1,209 +1,83 @@
-﻿# AIGC Competition Statement
+# AIGC Competition Statement
 
-> **Turn your final AIGC artwork into a competition-ready creation statement.**
-> 上传最终作品，整理 Prompt、AI 工作流与创作说明。
+面向大广赛、大学生新媒体创意节、学院奖等高校创意竞赛的 AIGC 创作说明书 Agent Skill。
 
-[![version](https://img.shields.io/badge/version-0.1.1-blue)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-0.1.2-blue)](CHANGELOG.md)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
----
+## 能做什么
 
-## 这是什么
+- 整理创意阐释、AI 工具链、人机协同过程和证明材料
+- 使用用户保存的原始 Prompt，或明确标注为“复现建议”
+- 检查匿名、真实性、格式和 Word 元数据
+- 找不到官方规则时进入 Generic Draft Mode，不冒充已符合官方要求
 
-一个 Agent Skill，专门帮助国内高校学生为**大广赛、大学生新媒体创意节、学院奖**等竞赛整理 AIGC 创作说明书。
+## 真实性原则
 
-**你只需要提供**：
-
-- 参赛作品的最终成品图
-- 比赛名称
-- 你用过的 AI 工具（记得多少说多少）
-
-**Agent 帮你整理**：
-
-- 创意阐释与设计逻辑
-- AI 工具说明与工作流描述
-- Prompt 记录（有原始记录就用原始的；没有就基于成品分析生成**复现建议**）
-- 匿名检查 + 格式验收
-- 导出 Word 文档 + 打包提交
-
----
-
-## 快速开始
-
-告诉你的 Agent：
-
-```
-帮我整理这件作品的 AIGC 创作说明。
-比赛：第十届大学生新媒体创意节
-使用工具：ComfyUI + SDXL + Photoshop
-```
-
-然后上传作品图。Agent 会自动进入流程，按需追问缺少的信息。
-
-**找不到官方赛事规则时**，不会停止——会用通用模板生成草稿，并明确提示你在提交前对照官方要求核查。
-
----
-
-## 一个重要的设计原则
-
-本 Skill 明确区分四类信息：
-
-| 等级 | 含义 | 文档措辞 |
+| 等级 | 含义 | 使用方式 |
 |---|---|---|
-| **Verified** | 你提供了材料（图片、截图、文件） | 直接陈述 |
-| **User-reported** | 你口头告知，没有材料 | "据创作者表述……" |
-| **Reconstructed** | 根据成品分析推断 | "以下为复现建议……" |
-| **Unknown** | 无法确认 | 留空或标注"未记录" |
+| `Verified` | 文件、截图或元数据直接证明 | 直接陈述 |
+| `User-reported` | 用户口头说明 | 使用引述语气 |
+| `Reconstructed` | 根据成品推断 | 明确标为复现建议 |
+| `Unknown` | 无法确认 | 留空或写“未记录” |
 
-**从最终成品反推的 Prompt，会明确标注为「Prompt 复现建议」，而不是「原始 Prompt」。**
-
----
-
-## 支持的 Agent 平台
-
-| 平台 | 支持方式 | 安装方式 |
-|---|---|---|
-| **Google Antigravity (AGY)** | ✅ Native Skill | 运行安装脚本（自动复制到 `~/.gemini/config/skills/`） |
-| **Cursor** | ✅ Native Skill | 运行安装脚本（自动复制到 `~/.cursor/skills/`） |
-| **OpenAI Codex** | ✅ Native Skill + AGENTS.md | 运行安装脚本（自动复制到 `~/.codex/skills/`） |
-| **Windsurf** | ⚙️ Project Rule | 运行安装脚本（自动复制 Rule 文件到当前项目） |
-| **Claude** | 📋 Project Instructions | 安装脚本打开配置文件 → 手动粘贴到 claude.ai |
-
-> **说明**：Antigravity、Cursor、Codex 支持**文件级 Skill 安装**（自动复制整个 Skill 目录到标准位置）。
-> Windsurf 支持**文件级 Rule 安装**（复制单个 Rule 文件到项目目录）。
-> Claude 需要在 web 界面手动粘贴，安装脚本会打开对应文件方便你复制。
-
----
+Skill 不会擅自填写 Seed、Steps、CFG、Sampler、模型精确版本、LoRA 权重、原始 Prompt、日期或生成次数。
 
 ## 安装
 
-### Windows
+### Codex
 
 ```powershell
-git clone https://github.com/thenightmygfcomeoutthecloset/aigc-competition-statement.git
-cd aigc-competition-statement
-.\scripts\install.ps1
+.\scripts\install.ps1 -Platform codex
 ```
 
-### macOS / Linux
+安装到 `~/.agents/skills/aigc-competition-statement/`。这是当前 OpenAI 文档规定的个人 Skill 位置。
 
-```bash
-git clone https://github.com/thenightmygfcomeoutthecloset/aigc-competition-statement.git
-cd aigc-competition-statement
-bash scripts/install.sh
-```
-
-安装脚本会提示你选择平台，显示将要复制的源路径和目标路径，执行前备份已有文件。
-
-### Dry Run（预览不执行）
+### Cursor
 
 ```powershell
-.\scripts\install.ps1 -DryRun
-```
-```bash
-bash scripts/install.sh --dry-run
+.\scripts\install.ps1 -Platform cursor
 ```
 
-### 卸载
+安装到 `~/.cursor/skills/aigc-competition-statement/`。项目级备用 Rule 位于 `adapters/cursor/`。
+
+macOS / Linux 使用：
+
+```bash
+bash scripts/install.sh codex
+bash scripts/install.sh cursor
+```
+
+安装器支持 `-DryRun` / `--dry-run` 和可恢复卸载：
 
 ```powershell
-# 卸载指定平台
-.\scripts\install.ps1 -Platform cursor -Uninstall
-```
-```bash
-bash scripts/install.sh cursor --uninstall
+.\scripts\install.ps1 -Platform codex -DryRun
+.\scripts\install.ps1 -Platform codex -Uninstall
 ```
 
----
+## 调用
 
-## 示例
+在 Codex 中输入：
 
-查看 [`examples/minimal-example.md`](examples/minimal-example.md) — 最简用法演示
-
-查看 [`examples/full-example.md`](examples/full-example.md) — 完整流程演示（虚构作品）
-
----
-
-## 工作流程
-
-```
-Stage 1  查找赛事要求
-         ├─ 找到规则  → Competition-specific mode
-         └─ 未找到   → Generic Draft Mode（继续执行，标注未校验）
-
-Stage 2  收集素材，打 Evidence Level 标签
-Stage 3  分析作品图视觉特征
-Stage 4  整理创作过程叙述
-Stage 5  生成 Prompt 复现建议（仅在无原始 Prompt 时）
-Stage 6  生成 Word 文档（无 AI 排版痕迹）
-Stage 7  合规检查（匿名 + 真实性 + 格式）
-Stage 8  导出与打包
+```text
+$aigc-competition-statement 帮我整理这件作品的 AIGC 创作说明。
+比赛：第十届大学生新媒体创意节
 ```
 
----
+Cursor 可通过 `/aigc-competition-statement` 调用，也可以由 Agent 根据任务描述自动选择。
 
-## 真实性与反编造
+## 结构
 
-以下信息在未经你明确提供的情况下，**Agent 不会自动填写**：
-
-Seed / 具体 Steps 值 / 具体 CFG 值 / Sampler 名称 / 模型版本 /
-LoRA 权重 / 原始 Prompt / 创作日期 / 软件版本
-
-详细规范见 [`skill/safety.md`](skill/safety.md)。
-
----
-
-## 项目结构
-
-```
-aigc-competition-statement/
-├── skill/
-│   ├── SKILL.md          # Agent 调用规范（核心）
-│   ├── workflow.md       # 详细阶段说明
-│   ├── output-spec.md    # 输出格式规范
-│   └── safety.md         # 真实性与反幻觉规范
-├── templates/
-│   └── competition-statement.md   # 通用竞赛模板（v0.1.1）
-│   └── prompt-record.md
-│   └── ai-process-report.md
-│   └── evidence-checklist.md
-├── adapters/
-│   ├── cursor/           # Cursor .mdc Rule 文件（项目级备用）
-│   ├── windsurf/         # Windsurf Rule 文件
-│   ├── claude/           # Claude Project Instructions
-│   └── codex/            # Codex AGENTS.md 文件
-├── examples/
-│   ├── minimal-example.md
-│   └── full-example.md
-├── scripts/
-│   ├── install.ps1       # Windows 安装脚本（含 -DryRun / -Uninstall）
-│   └── install.sh        # macOS/Linux 安装脚本（含 --dry-run / --uninstall）
-├── CHANGELOG.md
-└── LICENSE
+```text
+├── SKILL.md              # 真正的 Skill 入口
+├── skill/                # workflow / safety / output-spec
+├── templates/            # 通用说明书、Prompt、报告和检查清单
+├── adapters/             # Cursor / Codex / Windsurf / Claude
+└── scripts/              # Windows 与 macOS/Linux 安装器
 ```
 
----
-
-## 适用赛事
-
-| 赛事 | 状态 |
-|---|---|
-| 大广赛（全国大学生广告艺术大赛） | ✅ 通用模板 |
-| 大学生新媒体创意节 | ✅ 通用模板 |
-| 学院奖 | ✅ 通用模板 |
-| 全国大学生数字媒体科技作品竞赛 | ✅ 通用模板 |
-| 其他创意竞赛 | ✅ 通用模板 |
-
-> 赛事专用模板计划在 v0.2.0 中引入。
-
----
-
-## Contributing
-
-欢迎 PR：增加赛事专用模板、改进安装脚本、增加新平台适配。
-
----
+Codex 技能位置依据 [OpenAI Build skills](https://learn.chatgpt.com/docs/build-skills)，Cursor 技能位置依据 [Cursor Agent Skills](https://cursor.com/docs/skills)。
 
 ## License
 
-MIT License — 见 [LICENSE](LICENSE)
+MIT
