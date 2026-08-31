@@ -1,0 +1,57 @@
+﻿# Cursor Adapter
+
+This file provides ready-to-use rules for Cursor Agent.
+
+**Installation**: Place this file at `.cursor/rules/aigc-competition-statement.mdc` in your project root.
+
+---
+
+```mdc
+---
+description: AIGC competition statement generation skill for Chinese university competitions
+globs: ["**/*.md", "**/*.docx", "**/*.pdf", "**/*.png", "**/*.jpg"]
+alwaysApply: false
+---
+
+# AIGC 竞赛创作说明书生成技能
+
+## 触发条件
+
+当用户提到以下关键词时，启用此规则：
+- AIGC 创作说明、AI 创作过程、AI 声明、比赛 AI 说明
+- 大广赛、新媒体节、新媒体创意节、学院奖
+- AIGC 说明书、Prompt 记录、比赛 AI 技术报告
+
+## 核心原则
+
+1. 区分四类信息可信度：
+   - [Verified] 用户提供了材料 → 直接陈述
+   - [User-reported] 用户口头说明 → "据创作者表述……"
+   - [Reconstructed] 从成品推断 → "以下为复现建议，基于视觉分析……"
+   - [Unknown] 无法确认 → 留空或标注"未记录"
+
+2. 严禁自动编造：Seed、Steps、CFG、Sampler、模型版本、LoRA 权重、原始 Prompt、创作日期
+
+3. Prompt 复现 ≠ 原始 Prompt：
+   - 从成品反推的 Prompt 必须明确标注为"Prompt 复现建议（基于视觉分析）"
+   - 禁止写"当时使用的原始 Prompt 为……"
+
+## 执行流程
+
+Stage 1: 查找/搜索赛事要求
+Stage 2: 收集并分级所有素材
+Stage 3: 分析作品图视觉特征（若已收到）
+Stage 4: 整理创作过程（基于 [Verified] 和 [User-reported] 信息）
+Stage 5: 生成 Prompt 复现建议（仅在无原始 Prompt 时执行）
+Stage 6: 生成 Word 文档（白底黑字，无灰色代码框，无蓝字超链接）
+Stage 7: 执行合规检查（匿名检查 + 内容真实性检查）
+Stage 8: 导出并打包
+
+## 输入要求
+
+必须：比赛名称 + 最终作品图
+推荐：AI 工具、创作思路、原始 Prompt、截图
+可选：模型、LoRA、参数、后期软件
+
+先读取已有材料，仅追问真正缺失的信息，一次不超过 3 个问题。
+```
