@@ -25,6 +25,14 @@ Skill 不会擅自填写 Seed、Steps、CFG、Sampler、模型精确版本、LoR
 
 ## 安装
 
+### Google Antigravity（AGY）
+
+```powershell
+.\scripts\install.ps1 -Platform antigravity
+```
+
+安装到 `~/.gemini/config/skills/aigc-competition-statement/`。
+
 ### Codex
 
 ```powershell
@@ -44,6 +52,7 @@ Skill 不会擅自填写 Seed、Steps、CFG、Sampler、模型精确版本、LoR
 macOS / Linux 使用：
 
 ```bash
+bash scripts/install.sh antigravity
 bash scripts/install.sh codex
 bash scripts/install.sh cursor
 ```
@@ -51,8 +60,8 @@ bash scripts/install.sh cursor
 安装器支持 `-DryRun` / `--dry-run` 和可恢复卸载：
 
 ```powershell
-.\scripts\install.ps1 -Platform codex -DryRun
-.\scripts\install.ps1 -Platform codex -Uninstall
+.\scripts\install.ps1 -Platform antigravity -DryRun
+.\scripts\install.ps1 -Platform antigravity -Uninstall
 ```
 
 ## 调用
@@ -64,7 +73,7 @@ $aigc-competition-statement 帮我整理这件作品的 AIGC 创作说明。
 比赛：第十届大学生新媒体创意节
 ```
 
-Cursor 可通过 `/aigc-competition-statement` 调用，也可以由 Agent 根据任务描述自动选择。
+Cursor 可通过 `/aigc-competition-statement` 调用；AGY 和其他支持 Agent Skills 的平台也可以根据任务描述自动选择。
 
 ## 结构
 

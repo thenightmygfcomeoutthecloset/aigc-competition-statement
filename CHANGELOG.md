@@ -11,6 +11,7 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 - 将 `SKILL.md` 移到技能目录根部，使 Codex 与 Cursor 能正确发现
 - Codex 个人技能安装位置修正为 `~/.agents/skills/`
+- 明确记录并验证 Google Antigravity（AGY）的 `~/.gemini/config/skills/` 安装方式
 - 安装器只复制 Skill 入口、规范和模板，不再复制 `.git` 或整个仓库
 - 修复 Codex、Cursor 与 Windsurf adapter 的入口引用和包装格式
 - 更新中英文安装与调用说明

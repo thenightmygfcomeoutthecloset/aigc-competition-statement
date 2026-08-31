@@ -8,15 +8,17 @@ An Agent Skill for creating honest, reviewable AIGC creation statements for Chin
 ## Install
 
 ```powershell
+.\scripts\install.ps1 -Platform antigravity
 .\scripts\install.ps1 -Platform codex
 .\scripts\install.ps1 -Platform cursor
 ```
 
-Codex user skills install to `~/.agents/skills/aigc-competition-statement/`. Cursor user skills install to `~/.cursor/skills/aigc-competition-statement/`.
+Antigravity installs to `~/.gemini/config/skills/aigc-competition-statement/`. Codex user skills install to `~/.agents/skills/aigc-competition-statement/`. Cursor user skills install to `~/.cursor/skills/aigc-competition-statement/`.
 
 On macOS or Linux:
 
 ```bash
+bash scripts/install.sh antigravity
 bash scripts/install.sh codex
 bash scripts/install.sh cursor
 ```
