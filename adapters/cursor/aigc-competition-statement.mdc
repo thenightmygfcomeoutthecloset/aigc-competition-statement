@@ -1,15 +1,5 @@
-﻿# Cursor Adapter
-
-This file provides ready-to-use rules for Cursor Agent.
-
-**Installation**: Place this file at `.cursor/rules/aigc-competition-statement.mdc` in your project root.
-
----
-
-```mdc
----
-description: AIGC competition statement generation skill for Chinese university competitions
-globs: ["**/*.md", "**/*.docx", "**/*.pdf", "**/*.png", "**/*.jpg"]
+﻿---
+description: "AIGC competition statement generation skill for Chinese university competitions (大广赛, 新媒体节, 学院奖). Activate when user needs to document AIGC creation process, write AI usage statement, or prepare competition submission materials."
 alwaysApply: false
 ---
 
@@ -17,41 +7,69 @@ alwaysApply: false
 
 ## 触发条件
 
-当用户提到以下关键词时，启用此规则：
-- AIGC 创作说明、AI 创作过程、AI 声明、比赛 AI 说明
-- 大广赛、新媒体节、新媒体创意节、学院奖
-- AIGC 说明书、Prompt 记录、比赛 AI 技术报告
+当用户提到以下内容时激活：
+- AIGC 创作说明 / AI 声明 / 比赛 AI 说明 / AI 使用说明
+- 大广赛 / 新媒体节 / 新媒体创意节 / 学院奖 / 数字媒体竞赛
+- AIGC 说明书 / Prompt 记录 / 比赛 AI 技术报告 / 创作过程文档
 
-## 核心原则
+不触发：普通文案写作、与竞赛无关的 AI 使用问题。
 
-1. 区分四类信息可信度：
-   - [Verified] 用户提供了材料 → 直接陈述
-   - [User-reported] 用户口头说明 → "据创作者表述……"
-   - [Reconstructed] 从成品推断 → "以下为复现建议，基于视觉分析……"
-   - [Unknown] 无法确认 → 留空或标注"未记录"
+## Evidence Levels（核心机制）
 
-2. 严禁自动编造：Seed、Steps、CFG、Sampler、模型版本、LoRA 权重、原始 Prompt、创作日期
+处理任何信息前，先判断其可信等级：
 
-3. Prompt 复现 ≠ 原始 Prompt：
-   - 从成品反推的 Prompt 必须明确标注为"Prompt 复现建议（基于视觉分析）"
-   - 禁止写"当时使用的原始 Prompt 为……"
+| 等级 | 定义 | 文档措辞 |
+|---|---|---|
+| [Verified] | 用户提供了文件/截图/元数据 | 直接陈述 |
+| [User-reported] | 用户口头说明，无材料 | "据创作者表述……" |
+| [Reconstructed] | 从最终作品图推断 | "以下为复现建议，基于视觉分析……" |
+| [Unknown] | 无法确认 | 留空或写"未记录" |
 
-## 执行流程
+## 禁止编造
 
-Stage 1: 查找/搜索赛事要求
-Stage 2: 收集并分级所有素材
-Stage 3: 分析作品图视觉特征（若已收到）
-Stage 4: 整理创作过程（基于 [Verified] 和 [User-reported] 信息）
-Stage 5: 生成 Prompt 复现建议（仅在无原始 Prompt 时执行）
-Stage 6: 生成 Word 文档（白底黑字，无灰色代码框，无蓝字超链接）
-Stage 7: 执行合规检查（匿名检查 + 内容真实性检查）
-Stage 8: 导出并打包
+绝对不得自动填写：
+Seed / Steps 具体值 / CFG 具体值 / Sampler 名称 / 模型版本号 /
+LoRA 权重 / 原始 Prompt（除非用户提供）/ 创作日期 / 软件版本号
+
+## Prompt 复现 ≠ 原始 Prompt
+
+从成品图推断的提示词必须明确标注：
+"以下 Prompt 复现建议基于最终作品视觉分析生成，非创作时原始记录。"
+
+禁止写："当时使用的原始 Prompt 为……"
+
+## 工作流程
+
+```
+Stage 1  查找赛事要求（找不到时进入通用草稿模式，不停止）
+Stage 2  收集素材并打 Evidence Level 标签
+Stage 3  分析作品图视觉特征（[Reconstructed] 标注）
+Stage 4  整理创作过程叙述
+Stage 5  生成 Prompt 复现建议（仅在无原始 Prompt 时）
+Stage 6  生成 Word 文档（无 AI 排版痕迹）
+Stage 7  合规检查（匿名 + 真实性 + 格式）
+Stage 8  导出并打包
+```
+
+Stage 1 补充：
+- 找到官方规则 → 依据规则生成（Competition-specific mode）
+- 未找到官方规则 → 使用通用模板生成草稿，并在文档顶部标注：
+  "⚠️ 本文档基于通用模板生成，尚未依据官方赛事要求校验，请在提交前对照赛事官方规定审核。"
+
+## 文档格式要求
+
+- 白纸黑字，Word 标准样式
+- 禁止：灰色背景代码块 / 蓝色超链接字体 / 英文样式名残留 / 边框阴影
+- 图注简洁，每张图片下方一行说明
 
 ## 输入要求
 
-必须：比赛名称 + 最终作品图
-推荐：AI 工具、创作思路、原始 Prompt、截图
+必须确认（缺则追问）：比赛名称 + 最终作品图
+推荐提供：AI 工具、创作思路、原始 Prompt、截图
 可选：模型、LoRA、参数、后期软件
 
-先读取已有材料，仅追问真正缺失的信息，一次不超过 3 个问题。
-```
+先读取已有材料，再追问缺失信息，一次不超过 3 个问题。
+
+## 完整规范
+
+详见 skill/SKILL.md、skill/safety.md、skill/workflow.md。

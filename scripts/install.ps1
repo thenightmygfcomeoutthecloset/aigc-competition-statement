@@ -1,161 +1,199 @@
-﻿# PowerShell Install Script — AIGC Competition Statement Skill
+﻿# PowerShell Install Script — AIGC Competition Statement Skill v0.1.1
 # Compatible with Windows PowerShell 5.1+ and PowerShell 7+
 # Does NOT require admin privileges.
 
 param(
+    [ValidateSet("antigravity", "cursor", "codex", "windsurf", "claude", "")]
     [string]$Platform = "",
-    [switch]$Uninstall
+    [switch]$Uninstall,
+    [switch]$DryRun
 )
 
 $SKILL_NAME = "aigc-competition-statement"
-$SKILL_VERSION = "0.1.0"
+$SKILL_VERSION = "0.1.1"
 $REPO_URL = "https://github.com/thenightmygfcomeoutthecloset/aigc-competition-statement"
+
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$repoRoot = Split-Path -Parent $scriptDir
 
 Write-Host ""
 Write-Host "========================================"
 Write-Host "  AIGC Competition Statement Skill"
 Write-Host "  v$SKILL_VERSION"
+if ($DryRun) { Write-Host "  [DRY RUN — no files will be changed]" }
 Write-Host "========================================"
 Write-Host ""
 
-# ── Uninstall ──────────────────────────────────────────────────────────────
-if ($Uninstall) {
-    Write-Host "Uninstall: removing skill from Antigravity..."
-    $globalSkillPath = Join-Path $HOME ".gemini\config\skills\$SKILL_NAME"
-    if (Test-Path $globalSkillPath) {
-        Remove-Item -Recurse -Force $globalSkillPath
-        Write-Host "Removed: $globalSkillPath"
-    } else {
-        Write-Host "Not found at $globalSkillPath — nothing to remove."
-    }
-    Write-Host ""
-    Write-Host "To remove from other platforms, delete the adapter file you copied."
-    Write-Host "See: $REPO_URL#uninstall"
-    exit 0
-}
-
-# ── Select Platform ────────────────────────────────────────────────────────
+# ── Platform Selection ─────────────────────────────────────────────────────
 if (-not $Platform) {
-    Write-Host "Which platform are you installing for?"
-    Write-Host "  1. Google Antigravity (AGY)  [Native — Recommended]"
-    Write-Host "  2. Cursor                    [Adapter]"
-    Write-Host "  3. Windsurf                  [Adapter]"
-    Write-Host "  4. Claude                    [Project Instructions]"
-    Write-Host "  5. Codex                     [Setup Instructions — manual paste]"
+    Write-Host "Which platform?"
+    Write-Host "  1. Google Antigravity (AGY)     [Native Skill]"
+    Write-Host "  2. Cursor                       [Native Skill — ~/.cursor/skills/]"
+    Write-Host "  3. OpenAI Codex                 [Native Skill — ~/.codex/skills/ + AGENTS.md]"
+    Write-Host "  4. Windsurf                     [Project Rule — .windsurf/rules/]"
+    Write-Host "  5. Claude                       [Project Instructions — manual paste]"
     Write-Host ""
     $choice = Read-Host "Enter number (1-5)"
     switch ($choice) {
         "1" { $Platform = "antigravity" }
         "2" { $Platform = "cursor" }
-        "3" { $Platform = "windsurf" }
-        "4" { $Platform = "claude" }
-        "5" { $Platform = "codex" }
-        default {
-            Write-Host "Invalid choice. Exiting."
-            exit 1
-        }
+        "3" { $Platform = "codex" }
+        "4" { $Platform = "windsurf" }
+        "5" { $Platform = "claude" }
+        default { Write-Host "Invalid choice. Exiting."; exit 1 }
     }
 }
 
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$repoRoot = Split-Path -Parent $scriptDir
+function Show-Plan($src, $dest, $type) {
+    Write-Host ""
+    Write-Host "  Action  : $type"
+    Write-Host "  Source  : $src"
+    Write-Host "  Target  : $dest"
+    Write-Host "  Backup  : ${dest}.backup_<timestamp> (if target exists)"
+    Write-Host "  Uninstall: .\scripts\install.ps1 -Platform $Platform -Uninstall"
+    Write-Host ""
+}
+
+function Safe-Copy($src, $dest) {
+    $destDir = Split-Path -Parent $dest
+    if (-not (Test-Path $destDir)) {
+        if (-not $DryRun) { New-Item -ItemType Directory -Force -Path $destDir | Out-Null }
+        Write-Host "  Created directory: $destDir"
+    }
+    if (Test-Path $dest) {
+        $backup = "$dest.backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+        Write-Host "  Backup: $backup"
+        if (-not $DryRun) { Copy-Item -Recurse $dest $backup }
+    }
+    if (-not $DryRun) { Copy-Item -Recurse -Force $src $dest }
+}
+
+function Safe-Remove($dest) {
+    if (Test-Path $dest) {
+        Write-Host "  Removing: $dest"
+        if (-not $DryRun) { Remove-Item -Recurse -Force $dest }
+        Write-Host "  [OK] Removed."
+    } else {
+        Write-Host "  Not found: $dest — nothing to remove."
+    }
+}
+
+# ── Uninstall ──────────────────────────────────────────────────────────────
+if ($Uninstall) {
+    Write-Host "Uninstalling from: $Platform"
+    switch ($Platform) {
+        "antigravity" {
+            $dest = Join-Path $HOME ".gemini\config\skills\$SKILL_NAME"
+            Show-Plan "" $dest "Remove directory"
+            if (-not $DryRun) { Safe-Remove $dest }
+        }
+        "cursor" {
+            $skillDest = Join-Path $HOME ".cursor\skills\$SKILL_NAME"
+            $ruleDest  = Join-Path $HOME ".cursor\rules\$SKILL_NAME.mdc"
+            Write-Host "  Checking Cursor skill dir: $skillDest"
+            Show-Plan "" $skillDest "Remove directory"
+            if (-not $DryRun) { Safe-Remove $skillDest }
+            if (Test-Path $ruleDest) {
+                Write-Host "  Also found Cursor rule file: $ruleDest"
+                if (-not $DryRun) { Safe-Remove $ruleDest }
+            }
+        }
+        "codex" {
+            $skillDest = Join-Path $HOME ".codex\skills\$SKILL_NAME"
+            Show-Plan "" $skillDest "Remove directory"
+            if (-not $DryRun) { Safe-Remove $skillDest }
+        }
+        "windsurf" {
+            $curDir = Get-Location
+            $ruleDest = Join-Path $curDir ".windsurf\rules\aigc-competition-statement.md"
+            Show-Plan "" $ruleDest "Remove file"
+            if (-not $DryRun) { Safe-Remove $ruleDest }
+        }
+        "claude" {
+            Write-Host "Claude Project Instructions are managed on the web."
+            Write-Host "To uninstall: open claude.ai > Project > Project instructions > clear the AIGC content."
+        }
+    }
+    Write-Host ""
+    if ($DryRun) { Write-Host "[DRY RUN] No files were changed." }
+    exit 0
+}
 
 # ── Install ────────────────────────────────────────────────────────────────
-switch ($Platform.ToLower()) {
+switch ($Platform) {
 
     "antigravity" {
         $dest = Join-Path $HOME ".gemini\config\skills\$SKILL_NAME"
-        Write-Host "Installing to: $dest"
-        Write-Host ""
-        if (Test-Path $dest) {
-            $backup = "$dest.backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
-            Write-Host "Existing installation found. Creating backup at:"
-            Write-Host "  $backup"
-            Copy-Item -Recurse $dest $backup
+        Show-Plan $repoRoot $dest "Copy entire skill directory"
+        Safe-Copy $repoRoot $dest
+        if (-not $DryRun) {
+            Write-Host "[OK] Antigravity skill installed at: $dest"
+            Write-Host "     Antigravity will auto-detect it. No restart needed."
         }
-        Copy-Item -Recurse $repoRoot $dest -Force
-        Write-Host ""
-        Write-Host "[OK] Skill installed. Antigravity will auto-detect it."
-        Write-Host ""
-        Write-Host "To use: tell your agent"
-        Write-Host "  '帮我写 AIGC 创作说明' or '帮我整理比赛的 AI 说明书'"
     }
 
     "cursor" {
-        $adapterSrc = Join-Path $repoRoot "adapters\cursor\aigc-competition-statement.mdc"
-        $cursorRulesDir = Join-Path (Get-Location) ".cursor\rules"
-        $dest = Join-Path $cursorRulesDir "aigc-competition-statement.mdc"
-        Write-Host "Installing Cursor adapter to: $dest"
-        if (-not (Test-Path $cursorRulesDir)) {
-            New-Item -ItemType Directory -Force -Path $cursorRulesDir | Out-Null
+        $dest = Join-Path $HOME ".cursor\skills\$SKILL_NAME"
+        $src  = $repoRoot
+        Show-Plan $src $dest "Copy as Cursor Native Skill (~/.cursor/skills/)"
+        Safe-Copy $src $dest
+        if (-not $DryRun) {
+            Write-Host "[OK] Cursor skill installed at: $dest"
+            Write-Host "     Cursor will discover it automatically."
+            Write-Host "     Alternatively, copy the .mdc Rule file to your project:"
+            Write-Host "     Source: $repoRoot\adapters\cursor\aigc-competition-statement.mdc"
+            Write-Host "     Target: your-project\.cursor\rules\"
         }
-        if (Test-Path $dest) {
-            $backup = "$dest.backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
-            Copy-Item $dest $backup
-            Write-Host "Backup created: $backup"
+    }
+
+    "codex" {
+        $dest = Join-Path $HOME ".codex\skills\$SKILL_NAME"
+        $src  = $repoRoot
+        Show-Plan $src $dest "Copy as Codex Native Skill (~/.codex/skills/)"
+        Safe-Copy $src $dest
+        if (-not $DryRun) {
+            Write-Host "[OK] Codex skill installed at: $dest"
+            Write-Host "     Codex will discover it from SKILL.md frontmatter."
+            Write-Host ""
+            Write-Host "     For project-level AGENTS.md context, also copy:"
+            Write-Host "     $repoRoot\adapters\codex\AGENTS.md"
+            Write-Host "     to your project root (or .codex/AGENTS.md)."
         }
-        Copy-Item $adapterSrc $dest -Force
-        Write-Host ""
-        Write-Host "[OK] Cursor adapter installed."
-        Write-Host "     File: $dest"
-        Write-Host "     Cursor will load this rule automatically."
     }
 
     "windsurf" {
-        $adapterSrc = Join-Path $repoRoot "adapters\windsurf\aigc-competition-statement.md"
-        $windsurfRulesDir = Join-Path (Get-Location) ".windsurf\rules"
-        $dest = Join-Path $windsurfRulesDir "aigc-competition-statement.md"
-        Write-Host "Installing Windsurf adapter to: $dest"
-        if (-not (Test-Path $windsurfRulesDir)) {
-            New-Item -ItemType Directory -Force -Path $windsurfRulesDir | Out-Null
+        $adapterSrc  = Join-Path $repoRoot "adapters\windsurf\aigc-competition-statement.md"
+        $curDir      = Get-Location
+        $dest        = Join-Path $curDir ".windsurf\rules\aigc-competition-statement.md"
+        Show-Plan $adapterSrc $dest "Copy Windsurf Rule file"
+        Safe-Copy $adapterSrc $dest
+        if (-not $DryRun) {
+            Write-Host "[OK] Windsurf rule installed at: $dest"
         }
-        if (Test-Path $dest) {
-            $backup = "$dest.backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
-            Copy-Item $dest $backup
-            Write-Host "Backup created: $backup"
-        }
-        Copy-Item $adapterSrc $dest -Force
-        Write-Host ""
-        Write-Host "[OK] Windsurf adapter installed."
-        Write-Host "     File: $dest"
     }
 
     "claude" {
         $adapterSrc = Join-Path $repoRoot "adapters\claude\project-instructions.md"
-        Write-Host "Claude uses Project Instructions (web-based, cannot auto-install)."
+        Write-Host "Claude uses Project Instructions (web-based)."
         Write-Host ""
         Write-Host "Steps:"
-        Write-Host "  1. Open claude.ai and go to your Project"
+        Write-Host "  1. Open claude.ai and open or create a Project"
         Write-Host "  2. Click 'Project instructions'"
-        Write-Host "  3. Paste the content of this file:"
+        Write-Host "  3. Paste the contents of:"
         Write-Host "     $adapterSrc"
         Write-Host ""
-        Write-Host "Opening the file for you to copy..."
-        Start-Process notepad $adapterSrc
-    }
-
-    "codex" {
-        $adapterSrc = Join-Path $repoRoot "adapters\codex\setup-instructions.md"
-        Write-Host "Codex uses Setup Instructions (web-based, cannot auto-install)."
+        Write-Host "Opening file in Notepad for you to copy..."
+        if (-not $DryRun) { Start-Process notepad $adapterSrc }
         Write-Host ""
-        Write-Host "Steps:"
-        Write-Host "  1. Open codex.com and open or create an Agent"
-        Write-Host "  2. Go to Setup Instructions"
-        Write-Host "  3. Paste the content of this file:"
-        Write-Host "     $adapterSrc"
-        Write-Host ""
-        Write-Host "Opening the file for you to copy..."
-        Start-Process notepad $adapterSrc
-    }
-
-    default {
-        Write-Host "Unknown platform: $Platform"
-        Write-Host "Valid options: antigravity, cursor, windsurf, claude, codex"
-        exit 1
+        Write-Host "To 'uninstall': clear the pasted content from Project instructions."
     }
 }
 
 Write-Host ""
-Write-Host "To uninstall, run: .\scripts\install.ps1 -Uninstall"
-Write-Host "For help: $REPO_URL"
+if ($DryRun) {
+    Write-Host "[DRY RUN] No files were changed. Remove -DryRun to execute."
+} else {
+    Write-Host "Uninstall: .\scripts\install.ps1 -Platform $Platform -Uninstall"
+    Write-Host "Help:      $REPO_URL"
+}
 Write-Host ""

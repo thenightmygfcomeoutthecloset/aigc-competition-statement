@@ -3,7 +3,7 @@
 > **Turn your final AIGC artwork into a competition-ready creation statement.**
 > 上传最终作品，整理 Prompt、AI 工作流与创作说明。
 
-[![version](https://img.shields.io/badge/version-0.1.0-blue)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-0.1.1-blue)](CHANGELOG.md)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ---
@@ -40,7 +40,7 @@
 
 然后上传作品图。Agent 会自动进入流程，按需追问缺少的信息。
 
-不需要提前填写任何表格。
+**找不到官方赛事规则时**，不会停止——会用通用模板生成草稿，并明确提示你在提交前对照官方要求核查。
 
 ---
 
@@ -57,23 +57,21 @@
 
 **从最终成品反推的 Prompt，会明确标注为「Prompt 复现建议」，而不是「原始 Prompt」。**
 
-这让说明书真实可信，而不是编出来的。
-
 ---
 
 ## 支持的 Agent 平台
 
 | 平台 | 支持方式 | 安装方式 |
 |---|---|---|
-| **Google Antigravity (AGY)** | ✅ Native Skill | `./scripts/install.ps1` 或 `install.sh` |
-| **Cursor** | ✅ Project Rule | 运行安装脚本，或手动复制 `adapters/cursor/` 下的文件 |
-| **Windsurf** | ✅ Project Rule | 运行安装脚本，或手动复制 `adapters/windsurf/` 下的文件 |
-| **Claude** | ⚙️ Project Instructions | 将 `adapters/claude/project-instructions.md` 内容粘贴到 Project Instructions |
-| **Codex** | ⚙️ Setup Instructions | 将 `adapters/codex/setup-instructions.md` 内容粘贴到 Setup Instructions |
+| **Google Antigravity (AGY)** | ✅ Native Skill | 运行安装脚本（自动复制到 `~/.gemini/config/skills/`） |
+| **Cursor** | ✅ Native Skill | 运行安装脚本（自动复制到 `~/.cursor/skills/`） |
+| **OpenAI Codex** | ✅ Native Skill + AGENTS.md | 运行安装脚本（自动复制到 `~/.codex/skills/`） |
+| **Windsurf** | ⚙️ Project Rule | 运行安装脚本（自动复制 Rule 文件到当前项目） |
+| **Claude** | 📋 Project Instructions | 安装脚本打开配置文件 → 手动粘贴到 claude.ai |
 
-> **安装 Skill** 与**粘贴 Prompt** 是两回事。
-> Antigravity / Cursor / Windsurf 支持真正的文件级安装；
-> Claude / Codex 目前需要手动粘贴到各自平台的设置页面。
+> **说明**：Antigravity、Cursor、Codex 支持**文件级 Skill 安装**（自动复制整个 Skill 目录到标准位置）。
+> Windsurf 支持**文件级 Rule 安装**（复制单个 Rule 文件到项目目录）。
+> Claude 需要在 web 界面手动粘贴，安装脚本会打开对应文件方便你复制。
 
 ---
 
@@ -95,17 +93,25 @@ cd aigc-competition-statement
 bash scripts/install.sh
 ```
 
-安装脚本会提示你选择平台，然后自动复制对应文件到正确位置。不需要管理员权限。
+安装脚本会提示你选择平台，显示将要复制的源路径和目标路径，执行前备份已有文件。
+
+### Dry Run（预览不执行）
+
+```powershell
+.\scripts\install.ps1 -DryRun
+```
+```bash
+bash scripts/install.sh --dry-run
+```
 
 ### 卸载
 
 ```powershell
-# Windows
-.\scripts\install.ps1 -Uninstall
+# 卸载指定平台
+.\scripts\install.ps1 -Platform cursor -Uninstall
 ```
 ```bash
-# macOS / Linux
-bash scripts/install.sh --uninstall
+bash scripts/install.sh cursor --uninstall
 ```
 
 ---
@@ -121,11 +127,14 @@ bash scripts/install.sh --uninstall
 ## 工作流程
 
 ```
-Stage 1  核对赛事要求
+Stage 1  查找赛事要求
+         ├─ 找到规则  → Competition-specific mode
+         └─ 未找到   → Generic Draft Mode（继续执行，标注未校验）
+
 Stage 2  收集素材，打 Evidence Level 标签
 Stage 3  分析作品图视觉特征
 Stage 4  整理创作过程叙述
-Stage 5  生成 Prompt 复现建议（仅在无原始记录时）
+Stage 5  生成 Prompt 复现建议（仅在无原始 Prompt 时）
 Stage 6  生成 Word 文档（无 AI 排版痕迹）
 Stage 7  合规检查（匿名 + 真实性 + 格式）
 Stage 8  导出与打包
@@ -154,21 +163,21 @@ aigc-competition-statement/
 │   ├── output-spec.md    # 输出格式规范
 │   └── safety.md         # 真实性与反幻觉规范
 ├── templates/
-│   ├── competition-statement.md  # 主文档模板
-│   ├── prompt-record.md          # Prompt 记录模板
-│   ├── ai-process-report.md      # AI 过程报告模板
-│   └── evidence-checklist.md     # 合规检查清单
+│   └── competition-statement.md   # 通用竞赛模板（v0.1.1）
+│   └── prompt-record.md
+│   └── ai-process-report.md
+│   └── evidence-checklist.md
 ├── adapters/
-│   ├── cursor/           # Cursor .mdc 规则文件
-│   ├── windsurf/         # Windsurf 规则文件
+│   ├── cursor/           # Cursor .mdc Rule 文件（项目级备用）
+│   ├── windsurf/         # Windsurf Rule 文件
 │   ├── claude/           # Claude Project Instructions
-│   └── codex/            # Codex Setup Instructions
+│   └── codex/            # Codex AGENTS.md 文件
 ├── examples/
 │   ├── minimal-example.md
 │   └── full-example.md
 ├── scripts/
-│   ├── install.ps1       # Windows 安装脚本
-│   └── install.sh        # macOS/Linux 安装脚本
+│   ├── install.ps1       # Windows 安装脚本（含 -DryRun / -Uninstall）
+│   └── install.sh        # macOS/Linux 安装脚本（含 --dry-run / --uninstall）
 ├── CHANGELOG.md
 └── LICENSE
 ```
@@ -179,21 +188,19 @@ aigc-competition-statement/
 
 | 赛事 | 状态 |
 |---|---|
-| 大广赛（全国大学生广告艺术大赛） | ✅ 支持 |
-| 大学生新媒体创意节 | ✅ 支持 |
-| 学院奖 | ✅ 支持 |
-| 全国大学生数字媒体科技作品竞赛 | ✅ 支持 |
-| 其他创意竞赛 | ✅ 使用通用模板 |
+| 大广赛（全国大学生广告艺术大赛） | ✅ 通用模板 |
+| 大学生新媒体创意节 | ✅ 通用模板 |
+| 学院奖 | ✅ 通用模板 |
+| 全国大学生数字媒体科技作品竞赛 | ✅ 通用模板 |
+| 其他创意竞赛 | ✅ 通用模板 |
+
+> 赛事专用模板计划在 v0.2.0 中引入。
 
 ---
 
 ## Contributing
 
-欢迎提交 PR：
-- 添加新赛事的模板
-- 改进 Prompt 复现分析逻辑
-- 改进安装脚本
-- 增加新平台适配
+欢迎 PR：增加赛事专用模板、改进安装脚本、增加新平台适配。
 
 ---
 

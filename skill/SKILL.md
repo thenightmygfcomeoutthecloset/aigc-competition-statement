@@ -1,11 +1,11 @@
 ﻿---
 name: aigc-competition-statement
-version: 0.1.0
+version: 0.1.1
 description: >-
   为大广赛、大学生新媒体创意节、学院奖等国内高校创意竞赛，
-  帮助用户整理 AIGC 创作过程说明书。
+  帮助用户整理 AIGC 创作过程说明书（Word 格式）。
   支持从最终作品图重构 Prompt（明确标记为 Reconstructed），
-  生成符合赛事要求的 Word 文档并执行匿名检查。
+  执行合规检查，生成符合赛事要求的提交材料。
 intended_use: >-
   仅用于帮助创作者真实、诚实地整理和呈现 AI 辅助创作过程。
   不得用于伪造创作历史、编造未经核实的参数或事实。
@@ -109,33 +109,33 @@ intended_use: >-
 
 ---
 
-## Workflow（执行流程）
+## Workflow（执行流程概览）
 
 完整流程定义见 workflow.md。
 
-### 流程概览
-
 ```
-Stage 1  Competition Requirements  核对赛事要求
+Stage 1  Competition Requirements  查找赛事要求
+         ├─ 找到官方规则 → Competition-specific mode
+         └─ 未找到      → Generic Draft Mode（继续执行，文档顶部标注未校验）
+
 Stage 2  Evidence Collection       素材收集与分级
-Stage 3  Artwork Analysis          作品图视觉分析
+Stage 3  Artwork Analysis          作品图视觉分析（全部标注 [Reconstructed]）
 Stage 4  Process Reconstruction    创作过程整理
 Stage 5  Prompt Reconstruction     Prompt 复现（仅在无原始 Prompt 时执行）
-Stage 6  Document Generation       文档生成
+Stage 6  Document Generation       文档生成（使用通用模板，见 templates/）
 Stage 7  Compliance Check          合规与匿名检查
 Stage 8  Export                    导出与打包
 ```
 
 ---
 
-## Template Selection（模板选择）
+## Template（v0.1.1 模板说明）
 
-```
-大广赛        -> templates/competition-statement.md （大广赛版）
-新媒体节      -> templates/competition-statement.md （新媒体节版）
-学院奖        -> templates/competition-statement.md （学院奖版）
-其他/未知     -> templates/competition-statement.md （通用版）
-```
+当前版本（v0.1.1）所有赛事统一使用 `templates/competition-statement.md`（通用模板）。
+
+Agent 根据赛事官方要求动态调整字段和字数，无需切换不同模板文件。
+
+> 赛事专用模板（大广赛版、新媒体节版、学院奖版）计划在 v0.2.0 中引入。
 
 ---
 
@@ -146,7 +146,7 @@ Stage 8  Export                    导出与打包
 
 Agent 执行顺序：
 1. 确认收到最终作品图（若无则询问）
-2. 查找/搜索赛事要求
+2. 查找/搜索赛事要求（找不到则进入 Generic Draft Mode）
 3. 收集并分级所有素材
 4. 分析作品图视觉特征
 5. 询问是否有保存原始 Prompt（决定是否执行 Stage 5）
