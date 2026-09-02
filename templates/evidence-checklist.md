@@ -1,52 +1,46 @@
-﻿# Evidence Checklist — 提交流程材料自查清单
+﻿# Evidence Checklist — 交付构建完整性工程核查表 (Build Verification)
 
-> Agent 在 Stage 7 执行内部自查，确保交付包无悬挂占位、完整可提交。
-
----
-
-## 一、材料完整度自查（Submission Verification）
-
-逐项核验交付物是否齐备闭环：
-
-- [ ] **最终作品图**：已接收并完成多维解构
-- [ ] **阶段性创作说明**：基于 Dynamic Stage Graph 展开，无无序碎片
-- [ ] **过程视觉材料**：
-  - 宿主具备图像能力：草图垫图、阶段初稿图片已真实生成并嵌入文档；
-  - 宿主缺少图像能力：已输出完整生图指令包并无缝说明。
-- [ ] **AIGC 工具环节说明**：各环节工具分工清晰（无假想 Photoshop 绑定）
-- [ ] **必要提示词（Prompts）**：包含原始 Prompt [Verified] 或 基于真实比对演进的 Prompt [Reconstructed]
-- [ ] **输入素材（垫图）**：明确说明原创草图或逆向生成的复现草稿
-- [ ] **配置参数**：严格适配所选工具输出有效参数（Seed 未记录，无编造数值）
-- [ ] **对应工具结果说明**：客观记录各阶段生成效果与自然演进差距
-- [ ] **人机分工说明**：明确界定 AI 负责部分与人工主导部分
-- [ ] **版权自查说明**：已完成知识产权自查承诺
-- [ ] **复现材料说明**：第七章免责声明完备无遗漏
+> 本清单由系统在 Stage 7 执行工程级自动构建核查，直接依据 [skill/reconstruction.md](skill/reconstruction.md) 的 Canonical Required Assets Schema 验证交付包完整性。
 
 ---
 
-## 二、真实性自洽检查
+## 一、权威资产构建核验（Canonical Assets Verification）
 
-- [ ] 是否无编造的 Seed 数值或捏造的历史实测参数？
-- [ ] 是否无伪造的 Photoshop / ComfyUI / WebUI 等软件操作截图？
-- [ ] 是否在无证据情况下避免了强加“Adobe Photoshop 图层修整”？
-- [ ] 所有逆向推导内容是否均已规范标为 `[Reconstructed]`？
-- [ ] 原始创作工具与复现执行工具是否已明确区分？
-
----
-
-## 三、排版与格式质量检查
-
-- [ ] 文档结构是否遵循 Stage-Centric 闭环（`Input → Tool → Prompt → Parameters → Output → Adjustment`）？
-- [ ] 全文是否无未填充占位符，无“待补齐”、“待确认”悬挂字样？
-- [ ] 正文是否无灰色背景代码框、无蓝色超链接带下划线、无英文样式名残留？
-- [ ] 表格是否清晰单层三线表，无折叠溢出？
-- [ ] 每张图片下方是否有规范学术图注？
-- [ ] Word 核心元数据（作者、公司、修改人）是否已清空？
+- [ ] **最终作品存在性**：`final_artwork` 存在且 `filesize > 0`
+- [ ] **构图草图存在性**：`01_reconstructed_sketch.png` 存在且 `filesize > 0`
+- [ ] **轮廓线稿存在性**：`01_reconstructed_lineart.png` 存在且 `filesize > 0`
+- [ ] **色彩大关系稿存在性**：`01_reconstructed_color_block.png` 存在且 `filesize > 0`
+- [ ] **阶段初稿 V1 存在性**：`02_reconstructed_generation_v1.png` 存在且 `filesize > 0`
+- [ ] **迭代深化稿 V2 存在性**：`03_reconstructed_generation_v2.png` 存在且 `filesize > 0`
+- [ ] **演进 Prompt V1 存在性**：Prompt V1 正向词已生成且非空
+- [ ] **演进 Prompt V2 存在性**：Prompt V2 经诊断深化且非空（与 V1 差异明显）
+- [ ] **参数配置表存在性**：工具自适应参数已生成且无捏造数值（Seed 标为未记录）
+- [ ] **提示词记录表存在性**：`prompt-record.md` 真实渲染且无空字段
+- [ ] **动态阶段管线完整性**：`stage_graph` 数据结构闭环无死循环
+- [ ] **Word 说明书构建存在性**：`{作品名}_{赛事简称}_AIGC说明书.docx` 存在且 `filesize > 0`
 
 ---
 
-## 最终交付状态结论
+## 二、文档构建与占位符扫描校验
 
-| 状态标识 | 含义与交付标准 |
-|---|---|
-| **✅ 材料齐备，完整可提交 (Complete & Ready to Submit)** | 所有赛事要求的过程材料、草图垫图、演进Prompt、参数表与说明文档均已逆向补齐，无悬挂占位，可直接导出提交。 |
+- [ ] **DOCX 图片真实嵌入**：DOCX 文档内至少成功嵌入 3 张以上实际视觉成果图片
+- [ ] **学术图注与章节排版**：标题、正文、表格及图注格式符合排版规范
+- [ ] **零占位悬挂核查**：运行 `scripts/scan_placeholders.py` 确保全文占位符数量 `placeholder_count == 0`
+- [ ] **元数据清理核查**：Word 核心元数据（作者、公司、修改人）已彻底清空
+
+---
+
+## 三、工程构建完成判定（Manifest Completion）
+
+```text
+IF required_assets_missing == 0
+   AND broken_asset_paths == 0
+   AND empty_generated_files == 0
+   AND placeholder_count == 0
+   AND docx_validation_passed == true:
+       manifest.completion = true
+       status = "✅ 材料齐备，完整可提交 (Complete & Ready to Submit)"
+ELSE:
+       manifest.completion = false
+       status = "❌ 构建失败，需触发重试或本地兜底"
+```

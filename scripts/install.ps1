@@ -64,7 +64,7 @@ function Safe-Copy-Skill($srcRoot, $destDir) {
         if (-not $DryRun) { Copy-Item -Recurse $destDir $backup }
     }
     
-    $items = @("SKILL.md", "skill", "templates", "adapters", "README.md", "LICENSE")
+    $items = @("SKILL.md", "skill", "templates", "adapters", "scripts", "README.md", "LICENSE")
     foreach ($item in $items) {
         $srcPath = Join-Path $srcRoot $item
         if (Test-Path $srcPath) {
@@ -203,6 +203,7 @@ if ($DryRun) {
     Write-Host "Help:      $REPO_URL"
 }
 Write-Host ""
+
 
 
 

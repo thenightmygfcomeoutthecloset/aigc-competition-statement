@@ -1,7 +1,7 @@
 ﻿# AIGC Competition Statement
 
 > **Single Image Input → Automatically Reconstruct Complete Historical Materials → Satisfy Competition Requirements**
-> Given only a final AI-generated artwork, automatically reverse-engineer a dynamic pipeline, reconstruct composition sketches, stage drafts, evolving Prompts, and tool-adapted parameters, and output a complete, ready-to-submit Stage-Centric document with zero dangling placeholders.
+> Given only a final AI-generated artwork, automatically reverse-engineer a dynamic pipeline, reconstruct composition sketches, lineart, color studies, intermediate drafts (V1/V2), evolving Prompts, and tool-adapted parameters, and output a complete, ready-to-submit Stage-Centric document with zero dangling placeholders.
 
 [![version](https://img.shields.io/badge/version-0.2.2-blue)](CHANGELOG.md)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -12,34 +12,47 @@ An Agent Skill for creating honest, reviewable AIGC creation statements for Chin
 
 ## Three Core Work Modes
 
-- **Reconstruction Mode**: Activated when the user provides ONLY a final artwork. Automatically maps competition requirements to a missing material checklist, executes reverse operators (`reference_to_sketch`, `reference_to_intermediate_generation`), constructs natural prompt evolutions without canned defect scripts, adapts parameters to the chosen tool, and outputs a complete, ready-to-submit document with zero dangling placeholders. Never blocks or interrogates the user.
-- **Hybrid Mode**: Activated when partial authentic materials are provided. Authentic materials are preserved as `Verified` / `User-reported`; only missing stages are reconstructed.
+- **Reconstruction Mode**: Activated when the user provides ONLY a final artwork. Automatically maps competition requirements to the Canonical Required Assets Manifest, executes reverse operators (`reference_to_sketch`, `reference_to_lineart`, `reference_to_color_block`, `reference_to_intermediate_generation`), constructs natural prompt evolutions without canned defect scripts, adapts parameters to the chosen tool, and outputs a complete, ready-to-submit document with zero dangling placeholders.
+- **Hybrid Mode**: Activated when partial authentic materials are provided. Authentic materials are preserved as `[Verified]`; missing stages are reconstructed.
 - **Evidence Mode**: Activated when full authentic evidence is provided. Directly organizes authentic materials without unnecessary substitutions.
 
 ---
 
-## Competition Requirements to Reverse Asset Mapping
+## Canonical Required Assets Schema
 
-| Requirement Item | Target Asset | Operator / Method |
-|---|---|---|
-| Composition Sketch / Draft | `01_reconstructed_sketch.png` | `reference_to_sketch` |
-| Lineart / Input Reference | `01_reconstructed_lineart.png` | `reference_to_lineart` |
-| Color / Mood Study | `01_reconstructed_color_block.png` | `reference_to_color_block` |
-| Intermediate Stage Draft (V1) | `02_reconstructed_generation_v1.png` | `reference_to_intermediate_generation` |
-| Iterative Enhancement Draft (V2) | `03_reconstructed_generation_v2.png` | `reference_to_intermediate_generation` |
-| Evolving Prompts | Prompt V1 / V2 | Natural difference diagnosis (V1 vs final) |
-| Tool-Adapted Parameters | Parameter Table | Adapted to specific tools (Seed noted as unrecorded) |
-| Statement Document | 7-Section DOCX | Complete Stage-Centric document, zero placeholders |
+Single Source of Truth defined in `skill/reconstruction.md`:
+
+| Asset ID | Filename / Artifact | Operator / Source | Role |
+|---|---|---|---|
+| `final_artwork` | `final.png` | User Provided | Final AI artwork (`[Verified]`) |
+| `reconstructed_sketch` | `01_reconstructed_sketch.png` | `reference_to_sketch` | Composition sketch & perspective skeleton |
+| `reconstructed_lineart` | `01_reconstructed_lineart.png` | `reference_to_lineart` | Clean contour lineart for guidance |
+| `reconstructed_color_block` | `01_reconstructed_color_block.png` | `reference_to_color_block` | Color & mood block-in study |
+| `generation_v1` | `02_reconstructed_generation_v1.png` | `reference_to_intermediate_generation` | Intermediate stage 1 generation |
+| `generation_v2` | `03_reconstructed_generation_v2.png` | `reference_to_intermediate_generation` | Iterative stage 2 refined generation |
+| `prompt_v1` | Prompt V1 | Semantic extraction | Initial prompt formulation |
+| `prompt_v2` | Prompt V2 | Real difference diagnosis | Enhanced prompt (with negative prompt if supported) |
+| `parameter_record` | Parameter Profile | Tool-adapted mapping | Valid parameters for chosen tool (Seed unrecorded) |
+| `prompt_record` | `prompt-record.md` | Template rendering | Stage-Aware prompt record table |
+| `stage_process_record`| `stage_graph.json` | Dynamic pipeline | Data-driven stage graph structure |
+| `statement_docx` | `{Title}_{Contest}_Statement.docx` | `scripts/build_docx.py` | Complete A4 Word document with embedded images |
 
 ---
 
-## Natural & Believable Reverse Generation
+## Directory Layout
 
-1. **Natural Gap Diagnosis**: No artificial strawman scripts (e.g. "V1 must have empty background"). Generates V1, compares with final artwork, diagnoses real differences, and refines Prompt accordingly.
-2. **Dynamic Stage Graph**: Derives appropriate stages dynamically (Text-to-Image, Img2img, Compositing); Minimal but Sufficient.
-3. **Tool-Adapted Parameters**: Only outputs valid parameters for the chosen tool. No forced negative prompts if tool does not support it (e.g. DALL-E).
-4. **Tool Demarcation**: Clearly separates original creation tool (unrecorded / visually inferred) from reproduction tool (host capability / recommended platform).
-5. **Conditional Post-Processing**: No fake Photoshop assumptions without real evidence.
+### 1. Repository Layout
+- `SKILL.md`: Main entrance & three-mode routing.
+- `skill/`: Core downscaled specifications (`reconstruction.md`, `image-generation.md`, `workflow.md`, `safety.md`, `output-spec.md`).
+- `templates/`: Presentation layer (`competition-statement.md`, `prompt-record.md`, `evidence-checklist.md`).
+- `adapters/`: Thin wrappers for Cursor, Codex, Windsurf, and Claude.
+- `scripts/`: Executable builders, fallback generators, placeholder scanners, consistency checkers, and installers.
+- `examples/`: Regression fixtures (`final-image-only.md`, `minimal-example.md`, `full-example.md`).
+- `tests/`: Automated regression test suite.
+
+### 2. Installed Runtime Layout
+Installed to `~/.gemini/config/skills/`, `~/.agents/skills/`, or `~/.cursor/skills/`:
+- `SKILL.md`, `skill/`, `templates/`, `adapters/`, `scripts/`, `README.md`, `LICENSE`.
 
 ---
 

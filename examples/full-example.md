@@ -1,157 +1,68 @@
-﻿# 完整示例：赛博朋克民乐主题插画创作说明书
+﻿# 示例：真实材料保留与缺失资产自动补齐（Hybrid Mode Regression Fixture）
 
-> 本示例展示从一张最终作品逆向重构完整 AIGC 参赛说明书的全貌。
-> 示例采用 Stage-Centric 结构，展示严密的 `Input → Tool → Prompt → Parameters → Output → Adjustment` 证据链。
+> 本示例展示 **Hybrid Mode（混合重构模式）** 的权威基准：
+> 创作者提供了部分真实材料（最终成图 `未来之声.png` + 真实后期分层工程截图 `ps_layer.jpg`），但缺失原始草图、阶段生成图、原始 Prompt 与参数。
+> 验证原则：**真实材料保留为 `[Verified]`，缺失资产由 Canonical Manifest 自动补齐为 `[Reconstructed]`，最终 Manifest 100% Resolved**。
 
 ---
 
-## 用户原始输入
+## 一、创作者原始输入（Partial Evidence Input）
 
 ```text
 比赛：第十八届全国大学生广告艺术大赛（大广赛）
 作品名：《未来之声》
-（用户上传了最终成品图：未来之声.png，以及一张后期修图图层截图：ps_layer.jpg）
-（未保存原始草图垫图、原始 Prompt 及具体参数）
+附件上传：
+  1. 最终成稿图：未来之声.png
+  2. 真实后期工程截图：ps_layer.jpg (证明做过 Photoshop 最终图层调色与文字排版)
+（未保存原始草图垫图、未记录原始 Prompt 与生成参数）
 ```
 
 ---
 
-## Agent 处理流程简述
+## 二、Canonical Manifest 状态与全资产 Resolve 过程
 
-1. **模式判定**：检测到有最终作品和 PS 后期截图，但缺乏原始垫图、Prompt 与参数 → 启动 **Hybrid Mode（混合重构模式）**：
-   - 最终作品图与 PS 截图标记为 `[Verified]`；
-   - 构图草稿、阶段生成稿、Prompt 演进与参数建议执行逆向重构，标注为 `[Reconstructed]`。
-2. **画面结构化分析**：
-   - 主体：赛博未来城市中悬浮的发光全息琵琶与流动音符。
-   - 色彩：蓝紫冷色背景与金黄、霓虹青绿高光对比。
-   - 构图：垂直纵深仰角构图，高楼形成两侧空间夹角。
-3. **逆向生成复现垫图**：
-   - 执行 `reference_to_sketch`，逆向生成一张线稿透视草稿 `01_reconstructed_sketch.png`，呈现前期构图意图。
-4. **生成阶段演进结果与演进 Prompt**（Prompt V1 基础主体 → Prompt V2 全息光效与体积光）。
-5. **合规审查**：自查版权，标注开源字体与原创性；生成第七章复现免责声明。
+系统进入 **Hybrid Mode**，比对 Canonical Required Assets 清单并全量补齐：
 
----
+| 资产 ID | 产物形态 | 状态 | 来源与证据等级 | 处理说明 |
+|---|---|---|---|---|
+| `final_artwork` | `未来之声.png` | ✅ Existing | User 原件 `[Verified]` | 保留原始事实，绝不替换 |
+| `reconstructed_sketch` | `01_reconstructed_sketch.png` | ✅ Generated | `reference_to_sketch` `[Reconstructed]` | 逆向推演建筑与乐器空间透视草稿 |
+| `reconstructed_lineart` | `01_reconstructed_lineart.png` | ✅ Generated | `reference_to_lineart` `[Reconstructed]` | 逆向提取琵琶轮廓线稿作为引导层 |
+| `reconstructed_color_block` | `01_reconstructed_color_block.png` | ✅ Generated | `reference_to_color_block` `[Reconstructed]` | 提取蓝紫与金黄冷暖光影色块关系 |
+| `generation_v1` | `02_reconstructed_generation_v1.png` | ✅ Generated | `reference_to_intermediate_generation` `[Reconstructed]` | 首版具象初稿（城市场景成型，器乐形态未深化） |
+| `generation_v2` | `03_reconstructed_generation_v2.png` | ✅ Generated | `reference_to_intermediate_generation` `[Reconstructed]` | 二次迭代稿（全息发光微粒与漫射光确立） |
+| `prompt_v1` | Prompt V1 初稿提示词 | ✅ Generated | 语义解构自动生成 `[Reconstructed]` | 确立未来城市夜景与主乐器大框架 |
+| `prompt_v2` | Prompt V2 深化提示词 | ✅ Generated | 基于 V1 差距诊断自动深化 `[Reconstructed]` | 强化全息半透明微晶质感与丁达尔漫反射 |
+| `parameter_record` | 工具自适应参数配置文件 | ✅ Generated | Tool Parameter Profile 映射 `[Reconstructed]` | 建议采样步数 25–35 步，CFG 6.5–8.0，Seed 未记录 |
+| `prompt_record` | `prompt-record.md` | ✅ Generated | Stage-Aware 模板渲染 `[Reconstructed]` | 记录全阶段演进流、无空字段 |
+| `stage_process_record`| `stage_graph.json` | ✅ Generated | 动态管线构建 `[Reconstructed]` | 纳入阶段四真实 PS 工程，形成 4 阶段闭环 |
+| `statement_docx` | `未来之声_大广赛_AIGC说明书.docx` | ✅ Generated | `scripts/build_docx.py` 编译 `[Reconstructed]` | 嵌入真实 PS 截图与逆向生成图，完成构建 |
 
-## 最终生成文档全貌（片段呈现）
-
----
-
-# 【未来之声】AIGC 创作过程说明书
-
-## 一、作品基本信息
-
-- **作品名称**：未来之声
-- **参赛赛事**：第十八届全国大学生广告艺术大赛
-- **作品类型**：数字概念插画 / 视觉传达海报
-- **创作主题**：数字时代的中国传统文化新生与青年表达
-- **AIGC 核心技术路径**：构图草图引导图生图 + 多轮提示词深化 + Photoshop人工精修图层合成
+**Manifest 决算**：`required: 12, existing: 1, generated: 11, missing: 0 → 100% Resolved`。
 
 ---
 
-## 二、创作构思
+## 三、Stage-Centric 闭环结构呈现（含真实后期阶段）
 
-### 1. 创作背景与选题动机
-本作品以“未来城市中的传统民乐交响”为立意切入点，探索在高度数字化、赛博化的未来语境下，中华优秀传统民乐器（琵琶）所蕴含的生命力。通过赛博朋克与传统声乐意象的视觉碰撞，传递“传统韵味穿越数字空间、历久弥新”的精神内核。
+通过 `stage_graph` 数据驱动装配，由于用户提供了真实的后期材料，阶段四如实输出为 `[Verified]`：
 
-### 2. 视觉设计思路与设计目标
-在视觉上，画面采用高对比度蓝紫冷基调奠定未来城市的宏大与冷峻，前景则以高亮金色与霓虹青绿构筑全息琵琶与跳动音符。构图采用垂直仰角向上延展，强化“声音向上穿透空间”的崇高感与仪式感。
-
-### 3. AIGC 工具协同目的
-AI 生成工具用于快速具象化复杂的高密度赛博城市建筑群及流动的全息光束粒子，大幅提升宏大场景的渲染效率；创作者则主导整体构图设计、全息器乐符号的创意融合以及最终的精细图层修整。
+- **3.1 阶段一：概念探索与构图规划**（输入：逆向草图 `01_reconstructed_sketch.png`，[Reconstructed]）
+- **3.2 阶段二：AIGC 基础生成与初稿输出**（输入：阶段一草图，产出：图 2 初版图 `02_reconstructed_generation_v1.png`，[Reconstructed]）
+- **3.3 阶段三：Prompt 迭代与视觉深化**（输入：阶段二初稿，产出：图 3 高清深化图 `03_reconstructed_generation_v2.png`，[Reconstructed]）
+- **3.4 阶段四：人工后期精修与整合排版（真实证据呈现）**：
+  - 创作目的：擦除边缘噪点，强化主乐器对比度，排版主题文案；
+  - 输入素材：阶段三输出的高清 AI 渲染图；
+  - 使用工具：图像处理软件（Photoshop）；
+  - 阶段结果：图 4 后期图层工程面板截图（`ps_layer.jpg`，`[Verified]`）与最终提交成图（`未来之声.png`，`[Verified]`）。
 
 ---
 
-## 三、阶段性创作过程
+## 四、交付验证结论
 
-### 3.1 阶段一：概念探索与构图规划
-- **创作目的**：规划未来摩天大楼夹缝中中央主乐器的空间透视关系。
-- **输入素材**：逆向构图草稿（`01_reconstructed_sketch`，[Reconstructed]）
-- **使用工具**：手绘概念草图工具
-- **提示词 / 关键词**：未来城市建筑夹角、中央悬浮琵琶、垂直仰角透视 [Reconstructed Prompt]
-- **阶段生成结果**：
-  _图 1 阶段一建筑空间透视与乐器占位铅笔草图（[Reconstructed]）_
-- **调整说明与优化方向**：空间大框架与仰视线成立，进入阶段二借助 AI 渲染城市夜景与灯光。
-- **证据等级**：[Reconstructed]
-
-### 3.2 阶段二：AIGC 基础生成与初稿输出
-- **创作目的**：生成具有赛博朋克建筑肌理与基础霓虹光照的场景初稿。
-- **输入素材**：阶段一构图草稿（作为空间约束垫图）
-- **使用工具**：AI 图像生成工具（如 SDXL / ComfyUI）
-- **提示词（Prompt V1）**：
+```text
+Manifest Resolution Status: COMPLETE
+Existing Verified Assets: 1 (final_artwork) + 1 (post_processing_screenshot)
+Reconstructed Assets: 11 (all generated, files exist, filesize > 0)
+Zero Dangling Placeholders: PASSED
+Submission Status: ✅ 过程材料齐备，满足赛事规范，完整可直接提交
 ```
-赛博朋克风格未来城市夜景，两侧摩天大楼林立，中央悬浮发光琵琶轮廓，蓝紫色调，强烈霓虹灯光，仰角构图 [Reconstructed Prompt]
-```
-- **配置参数**：建议采样步数 30，CFG 7.0，分辨率 1024×1536（Seed 标为未记录）
-- **阶段生成结果**：
-  _图 2 阶段二 AI 渲染首版初稿（[Reconstructed]）_
-- **调整说明与优化方向**：城市建筑生成完整，但中央琵琶形态模糊，光斑分散，音符粒子缺失，需在阶段三增加负向排除并深化全息质感。
-- **证据等级**：[Reconstructed]
-
-### 3.3 阶段三：Prompt 迭代与视觉深化
-- **创作目的**：聚焦中央琵琶的全息微晶透明质感，生成流动的发光音符与丁达尔光束。
-- **输入素材**：阶段二初稿（作为局部重绘底图）
-- **使用工具**：AI 局部控制与迭代重绘工具
-- **提示词（Prompt V2）**：
-```
-正向：赛博朋克未来城市夜景，中央金黄与青绿相间半透明全息发光琵琶，琴身环绕流动立体发光音符，体积光，霓虹漫射，超高清细节，概念设计
-负向：模糊，过曝，结构畸变，脏色杂斑，低清晰度 [Reconstructed Prompt]
-```
-- **阶段生成结果**：
-  _图 3 阶段三细节深化后高清成品画面（[Reconstructed]）_
-- **调整说明与优化方向**：全息琵琶与粒子效果达到理想预期，AI 渲染阶段告一段落，转入 Photoshop 进行后期修脏与调色。
-- **证据等级**：[Reconstructed]
-
-### 3.4 阶段四：人工后期精修与整合排版
-- **创作目的**：擦除边缘噪点，强化主乐器对比度，排版主题文案。
-- **输入素材**：阶段三输出的高清 AI 渲染图
-- **使用工具**：Adobe Photoshop 2026
-- **核心操作说明**：
-  1. 建立分层蒙版，精细擦除建筑物边缘由于光影重叠产生的杂乱像素；
-  2. 使用曲线与色彩平衡工具，压暗远景建筑边缘，提升琵琶主体的视觉重心；
-  3. 导入思源黑体开源字族排版作品主题名称与版权信息。
-- **阶段生成结果**：
-  _图 4 Photoshop 分层修图工程面板截图与最终提交大图（[Verified]）_
-- **证据等级**：[Verified]
-
----
-
-## 四、AIGC 工具使用说明与人机协同分工
-
-### 1. 核心工具链矩阵
-
-| 制作环节 | 采用工具 | 工具属性 | 环节作用 |
-|---|---|---|---|
-| 构图构思 | 手绘板 | 人工创作 | 绘制引导建筑透视的构图线稿草图 |
-| 初稿生成 | ComfyUI / SDXL | 生成式 AI | 渲染复杂的赛博城市建筑与基础光线 |
-| 视觉迭代 | AI 局部重绘 | 生成式 AI | 深化全息器乐发光微晶与环绕音符质感 |
-| 后期精修 | Adobe Photoshop | 人工数字设计 | 图层精细修脏、全局色彩平衡与字体排版 |
-
-### 2. 人机协同职责划分
-- **人类创作者职责**：提出“未来民乐交响”的哲学立意；确定构图与色彩对比策略；设计多轮提示词优化方向；完成后期图层修图与排版。
-- **AI 工具协同职责**：高效呈现城市夜景光照计算与复杂的全息粒子发光效果。
-
----
-
-## 五、全流程 Prompt、输入素材与参数汇总表
-
-| 创作阶段 | 输入素材 (Input) | 使用工具 (Tool) | 提示词 (Prompt) | 核心配置参数 (Parameters) | 阶段输出结果 (Output) |
-|---|---|---|---|---|---|
-| **阶段一：构图** | 逆向构图草稿 [Reconstructed] | 概念设计软件 | 建筑夹角、中央乐器仰角 | 比例 2:3 | 构图线稿草图 (图 1) |
-| **阶段二：初稿** | 阶段一草图图层 | ComfyUI / SDXL | Prompt V1 [Reconstructed] | Steps 30, CFG 7.0 | 城市场景初版图 (图 2) |
-| **阶段三：迭代** | 阶段二初版成果 | AI 局部重绘工具 | Prompt V2 [Reconstructed] | Denoising 0.6 | 高清全息图 (图 3) |
-| **阶段四：后期** | 阶段三高清成果 | Adobe Photoshop | 不适用（人工修整） | 图层分层修复 | 最终提交成品 (图 4) |
-
----
-
-## 六、版权、素材来源与原创性说明
-
-1. 本作品为创作者原创构思与制作，内容积极向上，不涉及侵权或争议元素。
-2. 画面中不包含任何第三方未授权商标或版权形象，排版字体使用开源商用思源黑体。
-3. 版权自查状态：已确认合规。
-
----
-
-## 七、复现材料特别说明
-
-> **【重要说明】**  
-> 本说明文档中标记为 `[Reconstructed]` 的草图构图、阶段演进过程图、提示词演进及推荐配置参数，系因创作者创作过程中部分原始中间过程文件未作完整留存，由 AI 辅助分析系统根据最终作品的视觉与工程特征进行逆向工程分析和复现构建。其核心目的在于完整展示作品的技术路线、构思演进逻辑与工艺可复现性，并不代表创作当时保存的原始物理历史记录。

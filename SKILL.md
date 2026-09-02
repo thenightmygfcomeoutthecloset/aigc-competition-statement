@@ -30,16 +30,21 @@ description: 面向大广赛、新媒体创意节、学院奖等高校赛事的 
 
 `[Verified]` > `[User-reported]` > `[Reconstructed]` > `[Unknown]`
 
-- `[Verified]`：文件、截图、草图原件、元数据直接证明，直接陈述。
+- `[Verified]`：文件、截图、草图原件、元数据直接证明，直接客观陈述。
 - `[User-reported]`：创作者口头表述，使用引述语气。
 - `[Reconstructed]`：基于最终作品逆向推演与实际复现生成，明确标为复现内容，绝不伪充历史事实。
 - `[Unknown]`：无法确认的信息如实标为“未记录”，严禁脑补虚假 Seed。
 
-## 按需读取索引
+## 关键执行路径与按需读取索引
 
-- **逆向重构模式与材料映射清单**：[skill/reconstruction.md](skill/reconstruction.md)
-- **逆向图像生成算子与执行标准**：[skill/image-generation.md](skill/image-generation.md)
-- **模式驱动八阶段详细工作流**：[skill/workflow.md](skill/workflow.md)
-- **学术真实性底线与 IP 审查**：[skill/safety.md](skill/safety.md)
-- **Stage-Centric Word 排版标准**：[skill/output-spec.md](skill/output-spec.md)
-- **竞赛说明书标准模板**：[templates/competition-statement.md](templates/competition-statement.md)
+执行 Reconstruction Mode 时遵循标准流水线：
+`SKILL.md` → `skill/reconstruction.md` → `skill/image-generation.md` → `skill/workflow.md` → `skill/output-spec.md` → `templates/`
+
+- **权威资产清单与逆向重构规范**：[skill/reconstruction.md](skill/reconstruction.md)
+- **三级图像能力路由与生成算子**：[skill/image-generation.md](skill/image-generation.md)
+- **三模式驱动八阶段状态机**：[skill/workflow.md](skill/workflow.md)
+- **学术真实性底线与 IP 自查**：[skill/safety.md](skill/safety.md)
+- **Word 文档数据驱动装配标准**：[skill/output-spec.md](skill/output-spec.md)
+- **竞赛说明书标准主模板**：[templates/competition-statement.md](templates/competition-statement.md)
+- **阶段提示词演进归档记录表**：[templates/prompt-record.md](templates/prompt-record.md)
+- **提交流程材料构建自查清单**：[templates/evidence-checklist.md](templates/evidence-checklist.md)

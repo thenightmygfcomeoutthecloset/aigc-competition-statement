@@ -1,0 +1,10 @@
+﻿__pycache__/
+*.py[cod]
+*$py.class
+*.backup_*
+*.uninstalled_*
+tests/e2e_output/
+output/
+.venv/
+env/
+*.docx.tmp

@@ -1,104 +1,42 @@
-﻿# 示例：仅提供成品的最小调用（Reconstruction Mode）
+﻿# 示例：仅提供最终成品的最小调用回归基准（Minimal Regression Fixture）
 
-> 本示例展示最极限的场景——创作者只上传了一张最终作品图，没有保存任何原始 Prompt、垫图或参数。
-> 展示 Skill 如何自动启动 **Reconstruction Mode** 逆向推演全流程。
+> 本示例作为最严苛的自动化回归测试基准：
+> **输入仅有单张最终成图 `final.png`**，不依赖创作者提供任何额外材料。
+> 验证系统能否依靠全套逆向算子与本地兜底，自动造齐 12 项权威资产全集，完成从单图到全套提交材料的交付闭环。
 
 ---
 
-## 用户输入
+## 一、创作者输入（Minimal Input）
 
 ```text
-帮我整理这件作品的 AIGC 创作说明。
-比赛：第十届大学生新媒体创意节
-作品名：《深林微光》
-（仅上传了一张最终成品图：深林微光.png）
-（其他过程材料、原始 Prompt、参数均未保留）
+比赛：第十八届全国大学生广告艺术大赛
+作品名：《未来共生》
+附件：final.png (仅一张最终图，无任何其他文件)
 ```
 
 ---
 
-## Agent 执行流程
+## 二、自动资产构建与 Canonical Manifest 检验
 
-### 1. 模式检测与赛事规则核对
-- 检测到仅有最终成品图，无过程材料 → **自动启动 Reconstruction Mode（逆向重构模式）**。
-- 检索到新媒体创意节要求：提交阶段性创作过程、提供必要提示词、垫图素材与参数说明。
+Agent 启动 Reconstruction Mode，自动创建并解析权威资产清单：
 
-### 2. 最终作品结构化深度分析（Artwork Analysis）
-Agent 生成内部特征分析结构：
-```yaml
-artwork_analysis:
-  theme: "人与自然共生、神秘微光生态"
-  subject: "古老巨木根系缠绕的神秘发光鹿，鹿角带有枝桠与荧光菌类"
-  composition: "中央纵深引导构图，树干与光束形成框架式构图"
-  perspective: "平视微仰视镜头，中景主体突出，远景森林纵深明显"
-  depth_planes: "前景草叶虚化 → 中景发光鹿与古树主体 → 远景朦胧树影"
-  palette: "幽蓝、青绿冷调为主，荧光金黄与浅湖蓝作为提亮强调色"
-  lighting: "顶部丁达尔林间斜射光，鹿角与地表植物自发光，高光与阴影对比鲜明"
-  materials_textures: "发光鹿半透明微晶质感、老树皮粗糙皲裂、湿润青苔绒毛感"
-  visual_style: "奇幻概念插画风格，兼具写实光影与超现实梦幻质感"
-  possible_generation_method: "手绘构图草稿定位 → 图生图线稿控制生成初稿 → 提示词光影迭代 → PS图层调色与微光合成"
-  possible_input_assets: "铅笔构图草图（`reconstructed sketch`）"
-```
-
-### 3. 工作流推导（Workflow Reconstruction）
-根据作品特征推导 4 阶段创作管线：
-`构图草图规划 → 线稿控制基础生成 (初稿V1) → 提示词与光影深化 (优化稿V2) → PS精修与发光微粒合成`
-
-### 4. 逆向生成复现垫图与阶段视觉链（Capability-Based）
-- 调用图像能力执行 `reference_to_sketch`，逆向生成一张结构简化、铅笔笔触的构图草图 `01_reconstructed_sketch.png`，标注 `[Reconstructed]`。
-- 构建视觉演进链：
-  1. `01_reconstructed_sketch`（构图草图）
-  2. `02_reconstructed_v1`（初稿生成结果：形态成立，但光影偏平、缺乏丁达尔光束）
-  3. `03_reconstructed_v2`（优化生成结果：强化光效与材质，画面趋于完整）
-  4. `04_final_artwork`（用户提供的最终成稿：经PS后期调色与文字合成）
-
-### 5. 阶段性 Prompt 与参数演进重构
-- **Prompt V1（基础主体与构图）**：
-  `深邃原始森林中央，古老巨木根系，发光的神鹿站立在苔藓上，幽暗绿色调，框架式构图`
-- **Prompt V2（光影与质感深化，调整理由：强化丁达尔光线与荧光质感）**：
-  `深邃原始森林，丁达尔光束从树冠斜射，鹿角长满发光枝桠与晶莹菌类，半透明荧光质感，体积光，微光粒子，极高细节`
-  `Negative: 模糊，过曝，肢体畸变，杂乱噪点`
-- **推荐复现参数**：图生图模式，采样步数 30，CFG 7.0，重绘幅度 0.65，分辨率 1024×1536（Seed 标为“未记录，建议随机”）。
+1. `final_artwork` -> `final.png` [Verified]
+2. `reconstructed_sketch` -> `01_reconstructed_sketch.png` (`reference_to_sketch`) [Reconstructed]
+3. `reconstructed_lineart` -> `01_reconstructed_lineart.png` (`reference_to_lineart`) [Reconstructed]
+4. `reconstructed_color_block` -> `01_reconstructed_color_block.png` (`reference_to_color_block`) [Reconstructed]
+5. `generation_v1` -> `02_reconstructed_generation_v1.png` (`reference_to_intermediate_generation`) [Reconstructed]
+6. `generation_v2` -> `03_reconstructed_generation_v2.png` (`reference_to_intermediate_generation`) [Reconstructed]
+7. `prompt_v1` -> Prompt V1 初稿提示词 [Reconstructed]
+8. `prompt_v2` -> Prompt V2 依据真实比对差距深化的提示词 [Reconstructed]
+9. `parameter_record` -> 适配复现工具的参数配置表（Seed 标为未记录） [Reconstructed]
+10. `prompt_record` -> `prompt-record.md` 阶段提示词记录表 [Reconstructed]
+11. `stage_process_record` -> `stage_graph.json` 动态管线记录 [Reconstructed]
+12. `statement_docx` -> `未来共生_大广赛_AIGC说明书.docx` 编译构建完成 [Reconstructed]
 
 ---
 
-## 生成文档片段预览（Stage-Centric 结构）
+## 三、动态管线与参数自适应
 
-```markdown
-【深林微光】AIGC 创作过程说明书
-
-一、作品基本信息
-- 赛事：第十届大学生新媒体创意节
-- 类型：奇幻数字插画
-- 核心技术路径：逆向构图草图引导图生图 + 多轮提示词深化 + Photoshop后期光影合成
-
-三、阶段性创作过程
-
-3.1 阶段一：概念探索与构图规划
-- 创作目的：规划画面中央发光鹿与环抱树木的空间构图关系
-- 输入素材：逆向构图草稿 [Reconstructed]
-- 使用工具：手绘构图工具
-- 提示词：深林发光神鹿、框架构图 [Reconstructed Prompt]
-- 阶段结果：图 1 构图规划铅笔草图（[Reconstructed]）
-- 调整说明：确立了主体居中与树林纵深，但缺乏生动光影，进入阶段二通过 AI 具象化生成。
-
-3.2 阶段二：AIGC 基础生成与初稿输出
-- 创作目的：将线稿转化为具有森林环境与色彩基调的具象初稿
-- 输入素材：阶段一构图草图
-- 使用工具：AI 图像生成工具
-- 提示词：Prompt V1 [Reconstructed]
-- 阶段结果：图 2 AI 生成第一版初稿图像（[Reconstructed]）
-- 调整说明：初步呈现了神秘氛围，但鹿角发光层次单薄，林间无体积光，需在阶段三针对性强化。
-
-3.3 阶段三：Prompt 迭代与视觉深化
-- 创作目的：强化丁达尔光束与鹿角微晶发光质感，剔除画面杂斑
-- 提示词：Prompt V2（深化体积光与荧光微粒）[Reconstructed]
-- 阶段结果：图 3 细节深化后的高清渲染稿（[Reconstructed]）
-- 调整说明：视觉冲击力达标，转入阶段四进行局部修脏与排版。
-
-3.4 阶段四：人工后期精修与整合排版
-- 阶段结果：图 4 Photoshop 图层调色面板与最终作品（[Verified]）
-
-七、复现材料特别说明
-本文档中标记为 [Reconstructed] 的构图草图、阶段演进图、演进提示词及参数建议，系根据创作者最终作品逆向分析复现，旨在完整阐释创作逻辑与可复现流程，非创作当时保存的原始物理记录。
-```
+- **无默认后期假设**：系统分析画面未见复杂矢量文字排版或分层拼接痕迹，确立三阶段纯生图演进管线，**不强行生成 Photoshop 阶段与工程截图**；
+- **参数自适应工具**：根据推荐复现工具配置有效参数范围（如建议步数 25–35 步 [Reconstructed]，CFG 6.5–8.0 [Reconstructed]），Seed 严格注明“未记录（建议随机种子）”，绝不虚构具体数值；
+- **全要素闭环**：所有生成的 PNG 文件真实存在且大小大于 0，Word 说明书内真实内嵌图片并附带规范学术图注，全文无模板占位符。

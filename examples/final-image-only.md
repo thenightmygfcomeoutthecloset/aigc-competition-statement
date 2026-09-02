@@ -1,9 +1,8 @@
-﻿# 示例：单图启动与材料自动造齐（Final Artwork to Full Submission）
+﻿# 示例：单图启动与权威资产全套造齐（Canonical Reconstruction Regression Fixture）
 
-> 本案例展示 v0.2.2 核心使命：
-> **单图输入 → 逆向造齐全部历史材料 → 自动满足赛事材料要求**。
-> 创作者仅上传一张最终作品 `final.png`，无原始 Prompt、无垫图、无参数。
-> Skill 自动判定并逆向补齐全部赛事要求材料，文档无悬挂占位，输出默认“完整可提交”。
+> 本案例作为 v0.2.2 权威回归基准示例：
+> 创作者**仅上传一张最终作品** `final.png`，无原始 Prompt、无草图、无参数。
+> Skill 自动从 `canonical_required_assets` 建立补齐清单，逐项生成全部 12 项权威资产，产出无悬挂占位、默认完整可提交的说明书与 DOCX。
 
 ---
 
@@ -18,154 +17,60 @@
 
 ---
 
-## 二、自动映射与材料补齐清单
+## 二、Canonical Required Assets 清单 100% 映射核对
 
-Agent 接收到单图后，自动将**新媒体创意节过程材料要求**映射为**逆向补齐清单**：
+Agent 识别为 Reconstruction Mode，加载全仓唯一权威资产 Schema（`canonical_required_assets`），建立 12 项资产映射状态表：
 
-| 赛事要求材料项 | 逆向补全策略 | 对应产出资产 | 状态 |
-|---|---|---|---|
-| 构图草图 / 垫图素材 | 执行 `reference_to_sketch` 算子 | `01_reconstructed_sketch.png` | ✅ 真实生成就绪 |
-| 阶段生成初稿 (V1) | 执行 `reference_to_intermediate_generation` | `02_reconstructed_generation_v1.png` | ✅ 真实生成就绪 |
-| 演进提示词 (Prompts) | 基于 V1 与成图比对自然推导 V1/V2 | Prompt V1 / Prompt V2 | ✅ 演进链确立 |
-| 适配工具的配置参数 | 工具自适应参数映射（建议范围，Seed 未记录） | 建议参数表 | ✅ 规范配置 |
-| 创作过程说明书 | 装配 Stage-Centric 七大章节文档 | 创作说明书 DOCX | ✅ 无悬挂占位 |
-
----
-
-## 三、自然演进因果链（无刻板缺陷剧本）
-
-Agent 拒绝机械编写“V1 背景空洞”套路台词，而是执行真实比对：
-1. **生成首版初稿（`02_reconstructed_generation_v1.png`）**；
-2. **视觉检查并与最终成图（`final.png`）对比**：
-   - 骨架与主体位置已成功建立；
-   - 但成图中的**丁达尔体积光束在初稿中较为弥散，鹿角微晶发光颗粒层次感弱于成图**；
-3. **针对实际演进差距改写 Prompt V2**：
-   - 补充体积漫射光（Volumetric lighting）与发光微粒描述；
-   - 加入负向提示词排除画面噪点；
-4. **生成阶段成果与最终成图对应**。
+| 资产 ID | 规范文件名 / 产物 | 逆向算子 / 生成方式 | 状态 | 证据等级 |
+|---|---|---|---|---|
+| `final_artwork` | `final.png` | 用户原件 | ✅ Existing | `[Verified]` |
+| `reconstructed_sketch` | `01_reconstructed_sketch.png` | `reference_to_sketch` | ✅ Generated | `[Reconstructed]` |
+| `reconstructed_lineart` | `01_reconstructed_lineart.png` | `reference_to_lineart` | ✅ Generated | `[Reconstructed]` |
+| `reconstructed_color_block` | `01_reconstructed_color_block.png` | `reference_to_color_block` | ✅ Generated | `[Reconstructed]` |
+| `generation_v1` | `02_reconstructed_generation_v1.png` | `reference_to_intermediate_generation` | ✅ Generated | `[Reconstructed]` |
+| `generation_v2` | `03_reconstructed_generation_v2.png` | `reference_to_intermediate_generation` | ✅ Generated | `[Reconstructed]` |
+| `prompt_v1` | Prompt V1 阶段初稿提示词 | 动态语义解构生成 | ✅ Generated | `[Reconstructed]` |
+| `prompt_v2` | Prompt V2 针对性深化提示词 | 基于真实演进差距对比生成 | ✅ Generated | `[Reconstructed]` |
+| `parameter_record` | 工具自适应参数配置表 | 工具自适应参数映射 | ✅ Generated | `[Reconstructed]` |
+| `prompt_record` | `prompt-record.md` | Stage-Aware 提示词记录模板渲染 | ✅ Generated | `[Reconstructed]` |
+| `stage_process_record`| `stage_graph.json` | 动态阶段数据结构构建 | ✅ Generated | `[Reconstructed]` |
+| `statement_docx` | `深林微光_新媒体节_AIGC说明书.docx` | `scripts/build_docx.py` 编译装配 | ✅ Generated | `[Reconstructed]` |
 
 ---
 
-## 四、最终交付创作说明书全文（Stage-Centric 闭环结构）
+## 三、视觉演进因果链（V1 → 差异诊断 → V2 → Final）
+
+1. **构图与输入底稿准备**：
+   - 生成 `01_reconstructed_sketch.png`（铅笔构图草稿，确立居中框架构图与古树透视）；
+   - 生成 `01_reconstructed_lineart.png`（提取神鹿与主树干轮廓线稿，用于线稿约束）；
+   - 生成 `01_reconstructed_color_block.png`（提取深蓝与幽绿色彩大关系色块，确定冷色调基调）。
+2. **初版具象生成（Generation V1）**：
+   - 输入 Prompt V1，生成 `02_reconstructed_generation_v1.png`；
+   - **比对成图真实差距诊断**：神鹿形态与森林大骨骼已建立，但树冠射下的丁达尔光束较为弥散，鹿角发光微粒与青苔绒毛未充分收敛。
+3. **二次深化迭代（Generation V2）**：
+   - 针对演进差距编写 Prompt V2，强化体积光与微晶质感；
+   - 生成 `03_reconstructed_generation_v2.png`，光影聚集，细节锐化，接近最终成品；
+4. **最终成稿（final.png）**：
+   - 达到最终交付品质。
 
 ---
 
-# 【深林微光】AIGC 创作过程说明书
+## 四、动态 Stage Graph 与数据驱动输出
 
-## 一、作品基本信息
-
-- **作品名称**：深林微光
-- **参赛赛事**：第十届大学生新媒体创意节
-- **作品类型**：数字奇幻概念插画
-- **创作主题**：人与自然共生的生态奇境
-- **AIGC 核心技术路径**：构图草图引导图生图 + 多轮提示词深化（纯 AI 具象生成直出流程）
-- **工具环境说明**：
-  - 原始创作工具：未记录（基于画面特征推断为具备写实漫反射与微晶渲染能力的图像生成工作流）
-  - 本次复现工具：宿主环境图像能力与推荐复现平台
+内部构建的 `stage_graph` 驱动生成 Stage-Centric 结构，不设固定假想 Photoshop 阶段：
+- **阶段一：概念构思与构图规划**（输入：草图构想；输出：图 1 构图线稿/草图 `01_reconstructed_sketch.png`）
+- **阶段二：AIGC 基础生成与初稿输出**（输入：阶段一草图；输出：图 2 AI 初版图 `02_reconstructed_generation_v1.png`）
+- **阶段三：Prompt 迭代与细节深化**（输入：阶段二初版；输出：图 3 高清深化图 `03_reconstructed_generation_v2.png`）
+- **后期说明**：纯 AI 具象生成直出流程，未做复杂人工图层修整。
 
 ---
 
-## 二、创作构思
+## 五、交付验证指标（Verification Status）
 
-### 1. 创作背景与选题动机
-本作品以“微光森林中的生态隐喻”为创作母题，探索在宏大幽深的自然秩序中，生命与微光互相依附的静谧之美。通过发光神鹿与古树根系的共生形态，唤起青年群体对自然神秘与生命纯粹性的敬畏与沉思。
-
-### 2. 视觉设计思路与设计目标
-色彩上选用大面积深邃幽蓝与沉稳青绿作为冷色基调，烘托原始森林的静谧；主体鹿角与林间微光则采用高明度金黄与淡湖蓝，形成强烈的冷暖色彩对撞。构图采用框架式引导构图，树干与斜射光束收束视线，聚焦于中景的发光主体。
-
-### 3. AIGC 工具协同目的
-AI 生成工具用于高效完成高精度丁达尔体积光、青苔绒毛以及鹿角半透明微晶质感的物理漫反射光照计算，实现想象力与写实光影的融合。
-
----
-
-## 三、阶段性创作过程
-
-### 3.1 阶段一：概念探索与构图规划
-- **创作目的**：规划古树环抱中发光鹿居中站立的空间透视大框架。
-- **输入素材**：逆向构图草稿（`01_reconstructed_sketch.png`，[Reconstructed]）
-- **使用工具**：概念构图手绘设计工具
-- **提示词**：深林中央发光鹿、古树根系、框架构图 [Reconstructed Prompt | 复现建议]
-- **阶段生成结果**：
-  _图 1 阶段一主体占位与透视引导铅笔草图（[Reconstructed]）_
-- **调整说明与优化方向**：构图比例与空间纵深确立，进入阶段二借助 AI 工具进行色彩与材质具象化生成。
-- **证据等级**：[Reconstructed]
-
-### 3.2 阶段二：AIGC 基础生成与初稿输出
-- **创作目的**：将构图草图转化为具备森林环境与基础色彩关系的具象初稿。
-- **输入素材**：阶段一构图草图（作为垫图参考）
-- **使用工具**：AI 图像生成平台
-- **提示词（Prompt V1）**：
-```
-深邃原始森林中央，古老巨木根系，发光的神鹿站立在苔藓上，幽暗绿色调，框架式构图 [Reconstructed Prompt | 复现建议]
-```
-- **配置参数**：
-  - 生成模式：图生图（建议重绘幅度范围：0.60–0.70 [Reconstructed]）
-  - 采样步数：建议范围 25–35 步 [Reconstructed]
-  - 引导系数：建议范围 6.5–8.0 [Reconstructed]
-  - 随机种子：未记录（建议随机种子 -1，严禁编造）
-- **阶段生成结果**：
-  _图 2 阶段二 AI 工具渲染第一版初稿图像（`02_reconstructed_generation_v1.png`，[Reconstructed]）_
-- **调整说明与优化方向**：经比对最终成图，初版成功渲染了森林与主体骨架，但**树冠斜射的丁达尔体积光束在初稿中较为弥散，鹿角微晶发光颗粒层次感弱于成图**。需要在阶段三针对性补充体积光、微晶材质提示词，并加入负向排除词进行细节收敛。
-- **证据等级**：[Reconstructed]
-
-### 3.3 阶段三：Prompt 迭代与视觉深化
-- **创作目的**：解决阶段二存在的演进差距，生成清澈的丁达尔光束与鹿角晶莹发光质感。
-- **输入素材**：阶段二初稿成果（作为深化参考底图）
-- **使用工具**：AI 局部控制与二次采样优化工具
-- **提示词（Prompt V2）**：
-  - **正向提示词**：
-  ```
-  深邃原始森林，丁达尔光线穿透高耸树冠斜射，中央神鹿鹿角长满发光枝桠与晶莹发光微粒，半透明荧光质感，微光粒子漂浮，体积漫射光，极致细节 [Reconstructed Prompt | 复现建议]
-  ```
-  - **负向提示词**：
-  ```
-  模糊，过曝，结构畸变，杂乱噪点，生硬平光，失真比例 [Reconstructed Prompt | 复现建议]
-  ```
-- **配置参数**：建议重绘幅度 0.55–0.65 [Reconstructed]
-- **阶段生成结果**：
-  _图 3 阶段三光影与材质深化后的最终成品图像（`final.png`，[Verified]）_
-- **调整说明与优化方向**：丁达尔光线穿透感强，鹿角微晶材质与地表青苔细节达到预期，本作完成具象生成。
-- **证据等级**：[Verified]
-
-### 3.4 阶段四：人工后期精修与整合排版（条件性输出环节）
-- **本环节说明**：本作为纯 AI 具象渲染生成直出成果，创作过程中未进行复杂的 Adobe Photoshop 分层图层修整与字体排版，保持了生成艺术的原生质感与光影一致性。
-
----
-
-## 四、AIGC 工具使用说明与人机协同分工
-
-### 1. 核心工具链矩阵
-
-| 制作阶段 | 采用工具 | 工具属性 | 在本项目中的具体作用 |
-|---|---|---|---|
-| 构思构图 | 绘图设计工具 | 人工规划 | 画面透视、主体形态与构图骨骼规划 |
-| 图像生成 | AI 图像生成模型 | 生成式 AI | 森林场景生成、复杂光影渲染与微晶材质呈现 |
-| 后期处理 | 无（纯生图直出） | 不适用 | 保持纯生成艺术的原生光影 |
-
-### 2. 人机协同职责划分
-- **人类创作者职责**：提出人与自然共生的核心立意；构思框架式冷暖色彩方案；设计因果演进的提示词优化策略；严格把控最终画面的艺术水准。
-- **AI 工具协同职责**：高效执行复杂的物理光线漫反射计算与环境细节生成。
-
----
-
-## 五、全流程 Prompt、输入素材与参数汇总表
-
-| 创作阶段 | 输入素材 (Input) | 使用工具 (Tool) | 提示词 (Prompt) | 推荐/实测配置参数 (Parameters) | 阶段输出结果 (Output) |
-|---|---|---|---|---|---|
-| **阶段一：构图** | 逆向构图草稿 [Reconstructed] | 概念构思工具 | 深林发光鹿、构图大框架 | 画面比例 3:4 | 构图草稿 (图 1) [Reconstructed] |
-| **阶段二：初稿** | 阶段一构图稿 | AI 图像生成平台 | Prompt V1 [Reconstructed] | 建议步数 25–35, CFG 6.5–8.0, Seed 未记录 | 初稿结果 (图 2) [Reconstructed] |
-| **阶段三：迭代** | 阶段二初版成果 | AI 迭代优化工具 | Prompt V2 [Reconstructed] | 建议重绘 0.55–0.65, 强化体积光 | 最终成品 (图 3) [Verified] |
-
----
-
-## 六、版权、素材来源与原创性说明
-
-1. **作品原创性声明**：本作品由参赛者自主构思并调试提示词完成，画面内容积极向上，不含违法违规信息。
-2. **知识产权自查情况**：画面为纯原创奇幻生物与森林场景，无任何第三方商业 Logo、现实版权角色形象或专有素材侵权风险。版权状态：已确认合规。
-
----
-
-## 七、复现材料特别说明
-
-> **【重要说明】**  
-> 本说明文档中标记为 `[Reconstructed]` 的草图构图、阶段演进过程图、提示词演进及推荐配置参数，系因创作者创作过程中部分原始中间过程文件未作完整留存，由 AI 辅助分析系统根据最终作品的视觉与工程特征进行逆向工程分析和复现构建。其核心目的在于完整展示作品的技术路线、构思演进逻辑与工艺可复现性，并不代表创作当时保存的原始物理历史记录。
+- `required_assets_count`: 12 / 12
+- `missing_assets_count`: 0
+- `broken_asset_paths`: 0
+- `empty_generated_files`: 0
+- `dangling_placeholders`: 0
+- `manifest_completion`: `true`
+- **交付状态**：`✅ 过程材料齐备，满足赛事规范，完整可直接提交 (Complete & Ready to Submit)`

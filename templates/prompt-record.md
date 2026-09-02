@@ -1,57 +1,43 @@
-﻿# Prompt 记录表模板
+﻿# Stage-Aware Prompt Record — 提示词全流程演进记录表
 
-> 用于记录创作中使用的提示词与输入条件。
-> Agent 使用时：根据用户提供的信息填写，未知字段留空或标注“未记录”。
-
----
-
-## 基本信息
-
-| 字段 | 内容 |
-|---|---|
-| 作品名称 | {作品名称} |
-| 生成工具 | {ComfyUI / SD WebUI / Midjourney / DALL-E / Flux / 即梦 / 可灵 / 其他} |
-| 使用模型 | {模型名称，未记录则留空} |
-| 记录状态 | {原始记录 / Prompt 复现（基于视觉分析）} |
-| 输入素材 / 垫图 | {手绘草图 / 实拍参考图 / 纯文本生成} |
+> 本模板用于记录全流程提示词演进、参数适配、输入输出资产与调整因果。
+> 权威资产清单直接引用 [skill/reconstruction.md](skill/reconstruction.md)。
+> 在 Reconstruction Mode 下，所有字段由系统根据画面解构与比对诊断自动填充，不留空字段；不适用项明确标注为 N/A。
 
 ---
 
-## 提示词内容
+## 一、作品基本信息
 
-### 正向提示词（Positive Prompt）
-
-```
-{提示词内容}
-```
-
-### 负向提示词（Negative Prompt）
-
-```
-{负向提示词内容，如无则删除此节}
-```
+- **作品名称**：{artwork.title}
+- **参赛赛事**：{artwork.competition}
+- **技术路径**：{artwork.pipeline}
+- **工具环境**：{artwork.tool_environment}
 
 ---
 
-## 生成参数
+## 二、阶段提示词演进记录（Stage-Aware Progression）
 
-> 仅填写用户明确提供的参数。
+<!-- REPEATABLE_PROMPT_STAGE_BLOCK: 遍历各个演进阶段 -->
+### 阶段记录：{record.stage_id}（{record.stage_title}）
 
-| 参数 | 数值 | 状态 |
+| 属性项 | 配置与记录详情 | 状态说明 |
 |---|---|---|
-| Steps | {值} | {已记录 / 未记录} |
-| CFG Scale | {值} | {已记录 / 未记录} |
-| Sampler | {值} | {已记录 / 未记录} |
-| Seed | {值} | {已记录 / 未记录} |
-| 分辨率 | {宽×高} | {已记录 / 未记录} |
-| LoRA | {名称及权重} | {已记录 / 未记录} |
+| **Stage ID** | {record.stage_id} | 阶段标识 |
+| **Prompt Version** | {record.prompt_version} (如 Prompt V1 / Prompt V2) | 演进版本 |
+| **Input Asset** | {record.input_asset} | 输入素材/垫图 |
+| **Positive Prompt** | {record.positive_prompt} | 正向描述词 |
+| **Negative Prompt** | {record.negative_prompt}（工具不支持时标为 N/A） | 排除描述词 |
+| **Generation Tool** | {record.generation_tool} | 使用工具 |
+| **Parameter Profile** | {record.parameter_profile} | 适配参数配置 |
+| **Output Asset** | {record.output_asset} | 阶段输出文件 |
+| **Adjustment Reason** | {record.adjustment_reason} | 针对演进差距的优化理由 |
+| **Next Stage** | {record.next_stage} | 后续流向 |
+<!-- END_REPEATABLE_PROMPT_STAGE_BLOCK -->
 
 ---
 
-## 说明
+## 三、提示词演进因果逻辑说明
 
-{如果 Prompt 是复现建议而非原始记录，在此说明：}
-
-> 上述提示词为 Prompt 复现建议，基于最终作品（{作品名称}）的视觉特征分析生成，
-> 用于帮助复现相似视觉方向，并非创作时实际使用的原始提示词。
-> 创作时的原始提示词已不可考。
+1. **V1 阶段设计逻辑**：基于画面核心主题、空间构图与环境基调生成基础描述词，确立画面骨骼与主色调。
+2. **V1 与成图演进差距诊断**：首版生成后比对最终成图，诊断出光影层次、体积光漫射或细部肌理上的演进差距。
+3. **V2 针对性深化策略**：根据诊断差距，在 Prompt V2 中精确补充主光源漫射、微晶细节材质，并在工具支持时配置负向排除词，驱动画面收敛至最终品质。

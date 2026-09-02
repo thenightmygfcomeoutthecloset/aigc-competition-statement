@@ -1,121 +1,249 @@
-﻿# Reconstruction Mode — 逆向重构模式与自动造齐规范
+﻿# Reconstruction Mode — 逆向重构模式与权威资产规范 (Single Source of Truth)
 
-> 本文档定义在用户**仅提供一张最终作品**或**过程材料严重缺失**时，Skill 如何“缺什么补什么、自动造齐全套历史材料”，生成满足赛事要求、无占位悬挂、完整可直接提交的 AIGC 创作说明全套成果。
-
----
-
-## 一、核心定位：自动造齐、无占位悬挂
-
-在高校创意竞赛（大广赛、大学生新媒体创意节、学院奖等）中，组委会普遍强制要求提供完整的过程性材料（草图垫图、中间初稿、提示词演进、参数表、人机分工说明等）。
-
-Reconstruction Mode 的核心使命是：**单图输入 → 逆向造齐全部历史材料 → 自动满足赛事材料要求**。
-- **不中断、不逼问**：面对单张图片，流程全程自主贯通，不逼问用户提供并不存在的历史草图或参数；
-- **缺什么补什么**：根据赛事规则与作品特征，逐项调用逆向算子生成全部缺失的视觉与文本材料；
-- **无占位悬挂**：文档内部图文紧密呼应，参数、Prompt、图注一律充实填充，绝不留下“待补齐”、“待确认”等阻断性占位；
-- **默认“完整可提交”**：生成完毕即交付一套材料齐备、自洽严密的参赛交付包。
+> 本文档定义在用户**仅提供一张最终作品**或**过程材料严重缺失**时，全仓唯一的权威资产 Schema（Canonical Required Assets Manifest）、三级图像能力路由（Capability Router）以及动态管线推导标准。
+> 全仓所有模块（`workflow.md`、`image-generation.md`、`output-spec.md`、`templates/`、`examples/` 及 `README.md`）均以本文档定义的 Schema 为单一真实来源（Single Source of Truth）。
 
 ---
 
-## 二、赛事材料要求 → 逆向材料清单 → 算子映射表
+## 一、权威资产规范（Canonical Required Assets Schema）
 
-根据各高校赛事的硬性材料要求，建立 1:1 的逆向生成自动映射机制：
+当进入 Reconstruction Mode 时，系统必须自动将最终作品逆向推演为一套完整的、满足高校赛事（大广赛、新媒体节、学院奖等）要求的材料全集。
+全套材料必须全部生成并落地为真实有效的文件，**严禁缺少任何一项，严禁以“外部建议”或“占位符”终结流程**。
 
-| 赛事材料要求项 | 逆向目标资产 | 对应逆向算子 / 生成方式 | 成果形态与作用 |
-|---|---|---|---|
-| **构图规划 / 早期草图** | `01_reconstructed_sketch.png` | `reference_to_sketch` | 铅笔线条草稿、透视大关系，证明构图构思起源 |
-| **轮廓线稿 / 垫图素材** | `01_reconstructed_lineart.png` | `reference_to_lineart` | 纯净轮廓线稿，用于垫图或 ControlNet 线稿约束 |
-| **色彩氛围 / 大关系稿** | `01_reconstructed_color_block.png` | `reference_to_color_block` | 模糊色块、大笔刷涂抹，证明早期色彩与光影规划 |
-| **阶段初稿 (V1)** | `02_reconstructed_generation_v1.png` | `reference_to_intermediate_generation` | 首轮 AI 生成初稿，与最终图有合理的演进距离 |
-| **迭代深化稿 (V2)** | `03_reconstructed_generation_v2.png` | `reference_to_intermediate_generation` | 针对初稿调整后的深化成果，贴近最终成图 |
-| **演进提示词 (Prompts)** | Prompt V1 / Prompt V2 | 动态因果 Prompt 演进设计 | 基于 V1 与成图的真实对比，针对性深化细节 |
-| **生成参数配置** | 适配工具的配置参数 | 工具自适应参数映射 | 仅提供当前工具真正支持的有效参数与建议范围 |
-| **Prompt 记录表** | 完整的提示词归档表 | 自动装配 `templates/prompt-record.md` | 独立表格形式，记录正负向词及演进阶段 |
-| **过程证明材料** | 阶段演进图文与学术图注 | 自动装配 Stage-Centric 第三章 | 每张图下方配有规范学术图注，形成证据链 |
-| **AIGC 创作说明文档** | `{作品名}_{赛事}_AIGC说明书.docx` | 自动装配 Stage-Centric 七大章节 | 格式规范、清空元数据、排版学术严谨的提交文件 |
+```yaml
+canonical_required_assets:
+  final_artwork:
+    id: final_artwork
+    type: image
+    source: user_provided
+    required: true
+    evidence_level: "[Verified]"
+    description: "用户上传的最终 AI 作品原件"
 
----
+  reconstructed_sketch:
+    id: reconstructed_sketch
+    filename: 01_reconstructed_sketch.png
+    type: image
+    operator: reference_to_sketch
+    required: true
+    evidence_level: "[Reconstructed]"
+    description: "构图草稿/透视骨架图，剥离细节，呈现结构规划"
 
-## 三、创作流程动态化（Dynamic Stage Graph）
+  reconstructed_lineart:
+    id: reconstructed_lineart
+    filename: 01_reconstructed_lineart.png
+    type: image
+    operator: reference_to_lineart
+    required: true
+    evidence_level: "[Reconstructed]"
+    description: "纯净轮廓线稿，作为垫图或 ControlNet 线稿引导素材"
 
-严禁死板套用“构图 → 初稿 → 优化 → PS”固化四段式。Agent 根据最终作品特征与推导出的技术路径，**动态生成 Stage Graph**，做到 Minimal but Sufficient：
+  reconstructed_color_block:
+    id: reconstructed_color_block
+    filename: 01_reconstructed_color_block.png
+    type: image
+    operator: reference_to_color_block
+    required: true
+    evidence_level: "[Reconstructed]"
+    description: "色彩大关系稿，大笔刷平涂色块，呈现早期色彩与氛围探索"
 
-### 1. 文生图概念迭代管线（Text-to-Image Archetype）
-适用于纯画面氛围探索、宏大场景、概念插画：
-```text
-Stage 1: 概念构思与色彩氛围探索 (Color Block / Mood)
-   ↓
-Stage 2: 基础具象生成与首版初稿 (Prompt V1 → Generation V1)
-   ↓
-Stage 3: 提示词深化与细节迭代 (Prompt V2 → Final Artwork)
+  generation_v1:
+    id: generation_v1
+    filename: 02_reconstructed_generation_v1.png
+    type: image
+    operator: reference_to_intermediate_generation
+    required: true
+    evidence_level: "[Reconstructed]"
+    description: "阶段初稿 V1，基础具象成型，体现与最终成图的自然演进差距"
+
+  generation_v2:
+    id: generation_v2
+    filename: 03_reconstructed_generation_v2.png
+    type: image
+    operator: reference_to_intermediate_generation
+    required: true
+    evidence_level: "[Reconstructed]"
+    description: "迭代深化稿 V2，针对初稿差距针对性优化，贴近最终成品"
+
+  prompt_v1:
+    id: prompt_v1
+    type: text
+    required: true
+    evidence_level: "[Reconstructed]"
+    description: "阶段初版正向提示词（及环境基调描述）"
+
+  prompt_v2:
+    id: prompt_v2
+    type: text
+    required: true
+    evidence_level: "[Reconstructed]"
+    description: "经初稿诊断后针对性深化的提示词（含工具支持时的负向词）"
+
+  parameter_record:
+    id: parameter_record
+    type: structured_table
+    required: true
+    evidence_level: "[Reconstructed]"
+    description: "严格适配当前选用工具的参数配置文件与建议范围（Seed 标为未记录）"
+
+  prompt_record:
+    id: prompt_record
+    filename: prompt-record.md
+    type: document
+    template: templates/prompt-record.md
+    required: true
+    evidence_level: "[Reconstructed]"
+    description: "Stage-Aware 提示词全流程演进归档记录表"
+
+  stage_process_record:
+    id: stage_process_record
+    type: structured_graph
+    schema: stage_graph
+    required: true
+    evidence_level: "[Reconstructed]"
+    description: "数据驱动的动态阶段创作记录（Stage Graph）"
+
+  statement_docx:
+    id: statement_docx
+    filename_pattern: "{作品名称}_{赛事简称}_AIGC说明书.docx"
+    type: document
+    builder: scripts/build_docx.py
+    required: true
+    evidence_level: "[Reconstructed]"
+    description: "符合学术与排版规范的 Stage-Centric Word 创作说明书完整交付文件"
 ```
 
-### 2. 构图/线稿约束图生图管线（Sketch-Guided Archetype）
-适用于造型严谨、角色主体明确、构图规整的作品：
+---
+
+## 二、图像生成能力路由（Capability Router）
+
+Reconstruction Mode 的唯一目标是产出**真实存在、非空的文件级视觉资产**。系统按以下三级优先级自动调度图像能力：
+
 ```text
-Stage 1: 构图规划与铅笔草图设计 (Sketch Draft)
-   ↓
-Stage 2: 线稿引导具象生成 (Sketch + Prompt V1 → Generation V1)
-   ↓
-Stage 3: 光影渲染与细节深化 (Prompt V2 → Generation V2)
-   ↓
-Stage 4: 局部精细化调整与最终成稿
+               ┌── Priority 1: 宿主原生图像生成/编辑能力 (最高质量生成)
+               │
+调度决策 ─────┼── Priority 2: 外部挂载图像生成工具 / MCP 能力
+               │
+               └── Priority 3: 仓库内确定性本地兜底脚本 (scripts/reconstruct_assets.py)
+                               (确保文件必定生成、filesize > 0、无悬挂占位)
 ```
 
-### 3. 多元素分层与版式设计管线（Composite Archetype）
-适用于海报、视觉传达、包含文字或装饰图层的作品：
+1. **Priority 1（宿主原生图像生成能力）**：
+   - 宿主具备生图/修图工具（如 Antigravity `generate_image` 等）时，优先以此作为主生成路径；
+   - 依据标准算子提示词，生成高质量的构图草图、线稿、色块大关系稿及中间生成稿（V1/V2）。
+2. **Priority 2（外部挂载生图能力）**：
+   - 若原生能力不可用，自动调用已挂载的第三方图像生成 MCP 服务。
+3. **Priority 3（本地确定性兜底保障，Local Fallback）**：
+   - 调用仓库内置脚本：`python scripts/reconstruct_assets.py --input <final_image> --output-dir <dir>`；
+   - 基于 OpenCV 与 Pillow 进行确定性图像处理，确保 `01_reconstructed_sketch.png`、`01_reconstructed_lineart.png`、`01_reconstructed_color_block.png`、`02_reconstructed_generation_v1.png`、`03_reconstructed_generation_v2.png` **100% 真实生成在磁盘上**；
+   - 所有生成文件经过 `exists + filesize > 0` 强校验；
+   - **绝不允许以“请用户去外部工具生成图片”终结流程**。
+
+---
+
+## 三、视觉演进因果链（V1 与 V2 均为必要资产）
+
+在 Canonical Manifest 中，`generation_v1` 与 `generation_v2` 均为必须存在的正式资产。
+视觉链的完整演进流为：
+
 ```text
-Stage 1: 主视觉背景与基调生成
-   ↓
-Stage 2: 核心主体具象生成与提取
-   ↓
-Stage 3: 视觉要素统筹与整合排版
+最终作品 (final_artwork)
+  ↓ 逆向画面分析
+构图与输入素材准备 (01_sketch.png / 01_lineart.png / 01_color_block.png)
+  ↓ Prompt V1 输入
+阶段初稿生成 (02_reconstructed_generation_v1.png)
+  ↓ 真实比对初稿与成图的演进差距 (Difference Diagnosis)
+针对性优化 Prompt V2 (调整说明 Adjustment Reason)
+  ↓ Prompt V2 输入
+迭代深化稿生成 (03_reconstructed_generation_v2.png)
+  ↓
+最终提交成品 (final_artwork)
+```
+
+> **拒绝机械缺陷剧本**：初稿与最终图的比对诊断必须基于真实画面的演进距离（如主体结构已建立，但特定边缘轮廓光、发光微晶质感或景深层次在初稿中尚未充分收敛），针对真实差距修改 Prompt V2，确保逻辑自洽可信。
+
+---
+
+## 四、动态 Stage Graph 数据驱动结构
+
+动态管线决定的是**资产在说明书章节中的组织与叙事方式**，而非资产本身是否存在。
+内部统一定义 `stage_graph` 数据结构，驱动文档装配：
+
+```yaml
+stage_graph:
+  - id: stage_1
+    title: "阶段一：概念探索与构图规划"
+    purpose: "明确画面透视、主体骨骼与构图引导"
+    inputs:
+      - name: "逆向构图草稿"
+        filename: "01_reconstructed_sketch.png"
+        evidence_level: "[Reconstructed]"
+    tool: "概念构图设计工具"
+    tool_type: "设计规划 / 概念手绘"
+    prompt: "[Reconstructed Prompt | 复现建议] 构图引导描述"
+    parameters: "画幅比例基准 16:9 / 3:4"
+    outputs:
+      - filename: "01_reconstructed_sketch.png"
+        caption: "阶段一概念构思与构图规划草图"
+        evidence_level: "[Reconstructed]"
+    adjustment: "骨架确立，进入阶段二借助 AI 工具进行具象化生成"
+    evidence_level: "[Reconstructed]"
+
+  - id: stage_2
+    title: "阶段二：AIGC 基础生成与初稿输出"
+    purpose: "实现概念画面的色彩与基础光影具象呈现"
+    inputs:
+      - name: "阶段一构图草图"
+        filename: "01_reconstructed_sketch.png"
+    tool: "AI 图像生成模型"
+    tool_type: "生成式 AI"
+    prompt: "[Reconstructed Prompt | 复现建议] 基础主体与环境基调描述"
+    parameters: "采样步数范围 25–35 步 [Reconstructed], CFG 6.5–8.0, Seed 未记录"
+    outputs:
+      - filename: "02_reconstructed_generation_v1.png"
+        caption: "阶段二 AI 基础生成第一版初稿图像"
+        evidence_level: "[Reconstructed]"
+    adjustment: "比对最终成图，初版主体形态已立，但边缘体积光较弥散，需针对性优化"
+    evidence_level: "[Reconstructed]"
+
+  - id: stage_3
+    title: "阶段三：Prompt 迭代与视觉深化"
+    purpose: "修正初稿演进差距，强化光影细节与特定材质层次"
+    inputs:
+      - name: "阶段二初版成果"
+        filename: "02_reconstructed_generation_v1.png"
+    tool: "AI 迭代与优化工具"
+    tool_type: "生成式 AI"
+    prompt: "[Reconstructed Prompt | 复现建议] 深化光影与高精度材质描述"
+    parameters: "建议重绘参数范围 0.55–0.65"
+    outputs:
+      - filename: "03_reconstructed_generation_v2.png"
+        caption: "阶段三多轮提示词优化后的高清渲染成果"
+        evidence_level: "[Reconstructed]"
+    adjustment: "体积光与材质层次达到预期，完成具象生成"
+    evidence_level: "[Reconstructed]"
 ```
 
 ---
 
-## 四、自然可信的 Prompt 演进因果（拒绝机械缺陷剧本）
+## 五、参数适配工具与工具区分规范
 
-严禁在文档中预设背台词式的刻板缺陷（如机械写死“V1 一定背景空洞、光影不足”）。
-
-应当采用**真实的视觉比对诊断流程**：
-1. **生成首版初稿（Generation V1）**；
-2. **视觉检查并与最终成图（Final Artwork）对比**；
-3. **真实诊断两者的实际演进差距**（例如：构图大关系已对齐，但成图中的边缘轮廓光在初稿中较平淡；成图的特定微晶质感在初稿中呈现为粗糙噪点；成图特定装饰元素在初稿中尚未生成）；
-4. **针对实际差距修改 Prompt**：
-   - 增加缺失要素与光效描述；
-   - 针对初稿产生的模糊或杂乱元素引入排除项（若工具支持）；
-5. **生成下一阶段成果（Generation V2 / Final）**。
-
-> 这样得出的调整说明（Adjustment Reason）真实自然，评委阅读时逻辑完全成立。
+1. **参数自适应工具**：
+   - 若选用 Midjourney 风格：输出 `--ar`、`--v`、`--stylize`；无负向词项时绝不硬造；
+   - 若选用 DALL-E / Flux 风格：输出画幅与质量模式，绝不硬造 Negative Prompt；
+   - 若选用 SD / ComfyUI 风格：输出建议采样步数范围、CFG 范围；
+   - **Seed 规范**：无物理记录一律注明“未记录（建议随机种子）”，严禁编造具体数字。
+2. **工具严格区分**：
+   - `原始创作工具`：未记录（基于画面特征推断）
+   - `本次复现工具`：宿主生图能力 / 推荐复现平台
+   - 绝不得把复现工具混同为原始创作工具。
 
 ---
 
-## 五、参数适配工具原则
+## 六、交付闭环与 Submission Manifest
 
-严禁无脑套用 Stable Diffusion 的“Steps 30 / CFG 7.0 / Denoising 0.6”。必须根据推断或复现选用的工具特性输出参数：
-
-- **若使用/推断为 Midjourney 风格**：
-  输出画面比例（`--ar 16:9`）、风格化程度（`--stylize 250`）、版本号（`--v 6.0`）；不编造 Steps 或 CFG；不硬加 Negative Prompt（除非使用 `--no`）。
-- **若使用/推断为 DALL-E / 即梦 / 可灵 / Flux**：
-  输出画幅比例、分辨率基准、生成质量模式；**DALL-E 等不支持负向提示词的工具，绝不硬编 Negative Prompt**！
-- **若使用/推断为 Stable Diffusion / ComfyUI**：
-  提供建议采样步数范围（如 25–35 步 [Reconstructed]）、提示词引导系数建议范围（如 6.0–8.0 [Reconstructed]）、采样算法建议；
-- **通用原则**：随机种子（Seed）无真实记录一律标注为“未记录（建议随机种子）”，绝不虚构具体数值。
-
----
-
-## 六、严谨区分创作工具与复现工具
-
-单图输入时，创作者现场使用的原始工具真实历史上处于未记录状态：
-- **原始创作工具**：客观标记为“未记录（基于画面特征推断为生成式图像工作流）”；
-- **本次复现工具**：如实记录为“宿主环境图像能力 / 推荐复现平台”；
-- **绝不张冠李戴**：不把本次复现所用的算子或工具冒充为创作者当时物理使用的工具。
-
----
-
-## 七、默认“完整可提交”输出
-
-全流程执行完毕后，所有章节内容填充完毕，阶段图真实生成嵌入，全流程汇总表、Prompt 记录表、版权声明及第七章复现免责声明全部闭环。
-
-输出状态直接定为：
-`✅ 过程材料齐备，满足赛事规范，完整可直接提交`。
+全流程生成完毕后，自动输出 `submission_manifest.json`，并由 `scripts/build_docx.py` 编译生成 `{作品名}_{赛事简称}_AIGC说明书.docx`。
+只有当：
+- 所有 Canonical Required Assets 文件均存在且 `filesize > 0`；
+- DOCX 成功构建、图片成功嵌入且通过零占位扫描；
+- 交付状态直接定为：`✅ 过程材料齐备，满足赛事规范，完整可直接提交`。

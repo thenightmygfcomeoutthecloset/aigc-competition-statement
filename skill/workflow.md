@@ -1,6 +1,6 @@
-﻿# Workflow — 详细阶段说明（三模式驱动版）
+﻿# Workflow — 详细阶段执行工作流（三模式驱动版）
 
-> 本文档详细定义在 **Evidence Mode**、**Hybrid Mode** 与 **Reconstruction Mode** 下的完整执行标准。
+> 本文档定义 Agent 执行 AIGC 说明书生成的核心状态机。全仓唯一权威资产清单直接引用 [skill/reconstruction.md](reconstruction.md) 中定义的 `canonical_required_assets`。
 
 ---
 
@@ -25,101 +25,121 @@ Agent 接收创作者需求后，根据材料完备度自动分流：
    - 遵循 `Verified / User-reported 优先于 Reconstructed`，**仅对确实缺失的环节启动重构**，缺什么补什么。
 3. **Reconstruction Mode（逆向重构模式）**：
    - **用户仅提供一张最终 AI 作品图**，或材料严重缺失；
-   - **铁律：流程不中断、不逼问用户补齐材料！** 强制读取 [skill/reconstruction.md](reconstruction.md) 与 [skill/image-generation.md](image-generation.md)，全自动逆向造齐全部缺失的过程材料（草图垫图、中间初稿、演进Prompt、参数表），输出无占位悬挂、完整可直接提交的全套文档。
+   - **铁律：流程不中断、不逼问用户补齐材料！** 强制读取 [skill/reconstruction.md](reconstruction.md) 与 [skill/image-generation.md](image-generation.md)，全自动逆向造齐全部缺失的过程材料，确保无占位悬挂、文件真实落地。
 
 ---
 
-## 八阶段执行全流程
+## 八阶段详细执行流程
 
-### Stage 1 — Competition Requirements（核对赛事要求）
-1. 在用户工作目录查找或联网检索当前赛事官方规则（如大广赛、新媒体节、学院奖）。
-2. 提取要件：是否要求阶段性创作过程（截图+文字）、输入垫图、Prompt、参数、以及匿名要求。
-3. 找不到官方规则时自动进入 Generic Draft Mode，保留未校验警示并继续执行，不阻断流程。
-
----
-
-### Stage 2 — Mode Routing & Missing Assets Checklist（模式判定与缺失清单建立）
-1. 扫描输入材料，自动确立模式（Evidence / Hybrid / Reconstruction）。
-2. 在 Reconstruction Mode 下，自动将赛事材料要求映射为**待补齐的逆向材料清单**：
-   - 构图草图 / 早期骨架（目标：`01_reconstructed_sketch.png`）
-   - 阶段初稿（目标：`02_reconstructed_generation_v1.png`）
-   - 演进提示词（目标：Prompt V1 / V2）
-   - 工具自适应参数（目标：画幅比例、步数/CFG/质量模式建议）
-   - 过程说明书与汇总表（目标：Stage-Centric 完整文档）
+### Stage 1 — Competition Requirements Profile（解析赛事规则）
+1. 在用户工作目录检索或联网查询当前赛事官方规则（如大广赛、新媒体节、学院奖等）。
+2. 提取要件：是否要求阶段性过程（截图+文字）、输入垫图、Prompt、参数、以及匿名要求。
+3. 若未指定具体赛事或找不到规则，自动加载 **Default Competition Requirements Profile（默认赛事通用规则配置）**：
+   ```yaml
+   requirements_profile:
+     source: default
+     profile_status: resolved
+     mandatory_elements: [final_artwork, stage_process, visual_evidence, prompts, parameters, tool_matrix, ip_statement]
+   ```
+   流程继续顺畅执行，不设阻断拦截。
 
 ---
 
-### Stage 3 — Final Artwork Analysis（最终作品多维深度解构）
-对最终作品进行多维度深度解构，输出内部标准结构：
+### Stage 2 — Canonical Manifest Loading & Missing Assets Checklist（清单映射）
+1. **加载规范资产清单**：直接读取 [skill/reconstruction.md](reconstruction.md) 中的 `canonical_required_assets`；
+2. **扫描当前输入**：对比用户上传的文件与信息，逐项标记状态（`existing` 或 `missing`）：
+   - `final_artwork`（用户原件，`[Verified]`）
+   - `reconstructed_sketch`（目标：`01_reconstructed_sketch.png`）
+   - `reconstructed_lineart`（目标：`01_reconstructed_lineart.png`）
+   - `reconstructed_color_block`（目标：`01_reconstructed_color_block.png`）
+   - `generation_v1`（目标：`02_reconstructed_generation_v1.png`）
+   - `generation_v2`（目标：`03_reconstructed_generation_v2.png`）
+   - `prompt_v1`（阶段一/二提示词）
+   - `prompt_v2`（经诊断深化的提示词）
+   - `parameter_record`（适配工具的参数配置）
+   - `prompt_record`（Stage-Aware 提示词记录表）
+   - `stage_process_record`（动态 Stage Graph 数据结构）
+   - `statement_docx`（最终 Word 说明书文档）
+3. **闭环策略**：针对所有 `missing` 项，在后续阶段逐一调度对应算子生成，**严禁缺少任何一项，全部生成完毕后方可进入 Document Assembly**。
+
+---
+
+### Stage 3 — Final Artwork Multi-Dimensional Analysis（多维画面解构）
+对最终作品进行多维度深度解构，输出内部结构化分析报告：
 ```yaml
 artwork_analysis:
   theme: "作品核心立意与题材"
   subject: "画面核心主体形态、动态与空间位置"
-  composition: "构图方式（三分法/中心构图/对角线/向心聚焦）"
+  composition: "构图法则（三分法/中心构图/对角线/框架式引导）"
   perspective: "镜头透视与景别（特写/中景/全景；俯视/仰视/平视）"
   depth_planes: "空间层次与景深虚实（前景/中景/远景）"
-  palette: "色彩体系（主色、辅助色、强调色、明暗色温）"
-  lighting: "光影设计（主光、轮廓光、体积光、阴影过渡）"
+  palette: "色彩体系（主色、辅助色、强调色、冷暖倾向）"
+  lighting: "光影设计（主光源、轮廓光、漫射光、体积光）"
   materials_textures: "核心材质肌理细节"
   visual_style: "艺术风格定位"
-  possible_generation_method: "技术路径推断（文生图迭代 / 构图垫图图生图 / 分层合成）"
-  possible_input_assets: "合理的早期垫图类型（铅笔构图草稿、轮廓线稿、色彩大关系色块图）"
+  possible_generation_method: "技术路径推断（文生图迭代 / 构图引导图生图 / 分层合成）"
+  inferred_creation_tool: "未记录（基于画面特征推断为具备特定渲染能力的图像生成工作流）"
 ```
 
 ---
 
-### Stage 4 — Dynamic Stage Graph Derivation（动态管线推导）
-根据 Stage 3 分析结果，**动态生成 Stage Graph**，做到 Minimal but Sufficient，严禁套用死板固定格式：
-- **文生图概念迭代管线**：`色彩氛围探索 → 基础具象生成 (V1) → 提示词深化迭代 (V2) → 最终成品`
-- **线稿约束图生图管线**：`构图线稿规划 → 线稿引导初稿 (V1) → 光影细节深化 (V2) → 最终成稿`
-- **分层多元素合成管线**：`背景基调生成 → 核心主体生成 → 要素统筹整合`
+### Stage 4 — Dynamic Stage Graph Derivation（动态管线构建）
+根据 Stage 3 分析结果，构建当前作品专属的 `stage_graph` 数据结构（详见 [skill/reconstruction.md](reconstruction.md) 第四节）：
+- 确立各个阶段的 `id`、`title`、`purpose`、`inputs`、`tool`、`prompt`、`parameters`、`outputs` 及 `adjustment`；
+- 确保 Canonical Required Assets 在 `stage_graph` 中合理分布并被明确引用。
 
 ---
 
-### Stage 5 — Asset & Prompt Reverse Generation（资产与演进 Prompt 逆向生成）
+### Stage 5 — Capability Router & Asset Generation（全资产实际生成）
 
-#### 1. 图像过程材料真实生成（遵循 [skill/image-generation.md](image-generation.md)）
-- 宿主具备生图能力时：实际调用相应算子（`reference_to_sketch`、`reference_to_intermediate_generation` 等）生成图片文件，保存在项目目录并在文档中真实嵌入。
-  - 草图垫图必须粗糙简化，体现早期探索；
-  - 阶段中间稿体现真实的阶段演进感，严禁生成伪造的软件界面截屏（如假的 PS 图层面板、假的 ComfyUI 截图）。
-- 宿主缺少生图能力时：输出高精度生图 Prompt 与技术规格，在文档中以规范说明自然过渡，杜绝突兀悬挂，交付完整自洽文本。
+#### 1. 图像资产真实渲染（遵循 Capability Router）
+系统按三级优先级调度生图能力，**严禁输出“让用户后续自行生图”的方案**：
+- **Priority 1**：宿主原生生图能力（最高质量实出）；
+- **Priority 2**：外部图像生成 MCP 工具；
+- **Priority 3**：本地确定性兜底脚本：
+  ```bash
+  python scripts/reconstruct_assets.py --input <final_image_path> --output-dir <output_dir>
+  ```
+- **文件强校验**：生成的 `01_sketch`、`01_lineart`、`01_color_block`、`02_v1`、`03_v2` 必须均存在且 `filesize > 0`。
 
-#### 2. 自然可信的 Prompt 演进因果
-拒绝刻板缺陷剧本。采用真实比对：
-`生成 V1 → 视觉检查 → 与最终成图对比 → 诊断实际存在的具体演进差距 → 针对性改写 Prompt/参数 → 生成 V2`。
-所有演进 Prompt 统一标为 `[Reconstructed Prompt | 复现建议]`。
-
-#### 3. 工具自适应参数与工具区分
-- 参数严格匹配所选用工具的实际支持范围（MJ 输出 `--ar`、`--v`、`--stylize`；DALL-E/Flux 输出画幅与质量模式且不硬加负向词；SD 输出步数与 CFG 范围；Seed 统一标为未记录）；
-- 严格区分：
-  - `原始创作工具`：未记录（基于画面特征推断为生成式图像工作流）
-  - `本次复现工具`：宿主环境图像能力 / 推荐复现平台
-  - 严禁将复现工具冒充为创作者当时的原始历史工具。
-
----
-
-### Stage 6 — Stage-Centric Document Assembly（无悬挂完整文档装配）
-按创作阶段装配七大标准章节，**全文字段充实闭环，绝不留下“待补齐”、“待确认”等阻断性占位**：
-- **一、作品基本信息**（区分原始创作推断与复现工具）
-- **二、创作构思**（选题立意、视觉思路、设计目标、协同目的）
-- **三、阶段性创作过程**（核心证据链：`Input → Tool → Prompt → Parameters → Output → Adjustment`）
-  - **条件性后期输出**：有真实后期证据才输出后期阶段并标为 Verified/User-reported；无后期证据则如实说明纯 AI 直出，**严禁强加 Photoshop 图层操作与假截图**。
-- **四、AIGC 工具使用说明与人机协同分工**
-- **五、全流程 Prompt、输入素材与参数汇总表**（单层完整对照大表）
-- **六、版权、素材来源与原创性说明**（自主承诺合规，完成知识产权自查）
-- **七、复现材料特别说明**（声明复现材料用于完整展示创作演进逻辑）
+#### 2. 自然可信的 Prompt 演进与参数生成
+- 生成初稿 V1 提示词（Prompt V1）；
+- 比对初稿与成图的真实差距，撰写针对性调整理由（Adjustment Reason）；
+- 生成深化提示词（Prompt V2，若工具支持负向词则包含，不支持则省略）；
+- 输出工具自适应参数配置（Seed 统一标为未记录，严禁编造假数字）；
+- 渲染并保存 `prompt-record.md`（引用 [templates/prompt-record.md](templates/prompt-record.md)）。
 
 ---
 
-### Stage 7 — Submission Check & Metadata Sanitization（提交检查与元数据清空）
-1. 检查各要件是否齐备闭环（最终图、阶段草图、初稿图、演进Prompt、参数表、人机分工、版权声明与免责声明）。
-2. 确认文档状态默认输出为：
-   `✅ 过程材料齐备，满足赛事规范，完整可直接提交`。
-3. 清空 Word 核心元数据（作者、公司、修改人）。
+### Stage 6 — Document Assembly & Build（Word 说明书真实编译）
+1. 将 `artwork_analysis`、`stage_graph`、`prompt_record` 及生成的图片路径组装为 `submission_manifest.json`；
+2. 调用文档编译引擎（Document Builder）：
+   ```bash
+   python scripts/build_docx.py --manifest submission_manifest.json --output "{作品名}_{赛事简称}_AIGC说明书.docx"
+   ```
+3. 引擎自动完成：A4 排版、章节写入、动态阶段渲染、PNG 图片内嵌、学术图注生成、单层汇总表格生成、元数据清空与文件有效性核验。
 
 ---
 
-### Stage 8 — Export & Delivery（导出与完整包交付）
-1. 导出规范 Word 文档：`{作品名}_{赛事简称}_AIGC说明书.docx`；
-2. 连同生成的阶段图与最终成图打包为提交包；
-3. 输出完整交付提示。
+### Stage 7 — Verification & Zero-Placeholder Scan（提交流程自查与占位扫描）
+1. **占位符扫描**：运行扫描器确保交付文档无任何残留占位符：
+   ```bash
+   python scripts/scan_placeholders.py <output_directory>
+   ```
+2. **构建完整性校验**（引用 [templates/evidence-checklist.md](templates/evidence-checklist.md)）：
+   - `required_assets_count == 12`
+   - `missing_assets_count == 0`
+   - `docx_file_exists == true` 且 `filesize > 0`
+   - `placeholder_count == 0`
+3. 状态自动确立为：`✅ 过程材料齐备，满足赛事规范，完整可直接提交 (Complete & Ready to Submit)`。
+
+---
+
+### Stage 8 — Packaging & Delivery（交付成果打包）
+1. 交付标准目录：
+   - 最终作品原件 (`final.png`)
+   - 逆向全套过程图片 (`01_sketch.png`, `01_lineart.png`, `01_color_block.png`, `02_v1.png`, `03_v2.png`)
+   - 提示词演进记录 (`prompt-record.md`)
+   - 提交清单 (`submission_manifest.json`)
+   - 最终提交说明书 (`{作品名}_{赛事简称}_AIGC说明书.docx`)
+2. 向用户呈现交付报告与各阶段核心成果。

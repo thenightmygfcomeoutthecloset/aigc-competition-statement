@@ -23,7 +23,7 @@ This project follows [Semantic Versioning](https://semver.org/).
 - **阶段管线动态化（Dynamic Stage Graph）**：根据作品特征动态推导 Stage Graph（文生图概念迭代、线稿引导图生图、多元素分层合成），阶段数量做到 Minimal but Sufficient。
 - **参数适配工具机制**：不再无脑套用 SD 的 Steps/CFG/Denoising。根据所选工具输出有效参数（如 MJ 输出 `--ar`/`--stylize`，DALL-E 等工具绝不硬造 Negative Prompt；Seed 统一标为未记录，严禁捏造具体数值）。
 - **工具严格区分**：明确区分“原始创作工具（未记录 / 基于特征推断）”与“本次复现工具（宿主环境能力 / 推荐平台）”，绝不将复现工具冒充为创作者当时的原始历史工具。
-- **命名与表述统一**：全仓库统一规范为“三工作模式”（Evidence Mode / Hybrid Mode / Reconstruction Mode），杜绝双模式与三模式混写。
+- **命名与表述统一**：全仓库统一规范为“三工作模式”（Evidence Mode / Hybrid Mode / Reconstruction Mode），消除旧称谓混用。
 
 ---
 
@@ -51,3 +51,4 @@ This project follows [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - Adapters 全面 Thin 化，确立 Single Source of Truth。
+
