@@ -1,32 +1,34 @@
----
+﻿---
 name: aigc-competition-statement
-description: 为大广赛、大学生新媒体节、学院奖等高校创意竞赛整理真实、可核验的 AIGC 创作说明、AI 使用声明、Prompt 记录和 Word 提交材料；不用于伪造创作历史或普通文案写作。
+description: 面向大广赛、新媒体创意节、学院奖等高校赛事的 AIGC 创作说明书 Agent Skill。用户仅需提供一张最终 AI 作品，即可自动逆向推导合理创作流程、生成复现垫图、阶段结果与演进 Prompt，并输出结构完整且符合学术规范的提交文案；同时也支持整理用户提供的真实证据。
 ---
 
 # AIGC 竞赛创作说明书
 
-帮助创作者把已有材料整理为可提交、可追溯的 AIGC 创作说明。先读用户提供的规则、作品、截图和元数据，再提出最多三个必要问题。
+帮助创作者从一张最终 AI 作品自动逆向重构合理的创作全流程，或将已有真实材料整理为规范、可追溯的高校竞赛提交材料。
 
-## 证据等级
+## 核心工作模式
 
-- `[Verified]`：文件、截图或元数据直接证明。可以直接陈述。
-- `[User-reported]`：仅由用户口头说明。使用“据创作者表述”等引述语气。
-- `[Reconstructed]`：由最终作品推断。必须标明是复现建议，不是原始记录。
-- `[Unknown]`：无法确认。留空或写“未记录”。
+- **Reconstruction Mode（逆向重构模式）**：用户仅提供一张最终作品图或材料严重缺失时自动启用。自动完成画面结构化分析、工作流推导、逆向生成复现垫图（如线稿/草图）、阶段视觉结果、演进 Prompt（V1/V2/V3）与参数建议，组织完整说明书。
+- **Evidence Mode（真实证据模式）**：用户已提供原始 Prompt、垫图、工作流截图或参数时启用。直接整理真实证据，严禁无必要替代。
 
-不得在用户未提供时填写 Seed、Steps、CFG、Sampler、模型精确版本、LoRA 权重、原始 Prompt、日期、软件版本、生成次数或截图细节。
+## 证据等级与优先级
 
-## 工作方式
+`[Verified]` > `[User-reported]` > `[Reconstructed]` > `[Unknown]`
 
-1. 查找当前赛事官方要求。找不到时继续使用通用草稿，但在文档顶部明确标注“尚未依据官方赛事要求校验”。
-2. 为全部事实分配证据等级；创作过程只使用 `[Verified]` 和 `[User-reported]` 信息。
-3. 只有缺少原始 Prompt 时才提供复现建议，并写明：
-   “以下 Prompt 复现建议基于最终作品视觉分析生成，非创作时原始记录。”
-4. 使用 `templates/competition-statement.md` 组织内容，生成 Word 文档后执行匿名、真实性、格式和元数据检查。
+- `[Verified]`：文件、截图、元数据直接证明，直接陈述。
+- `[User-reported]`：创作者口述，使用引述语气。
+- `[Reconstructed]`：基于最终作品逆向分析与复现生成，明确标为复现内容，非原始历史记录。
+- `[Unknown]`：无法确认，留空或标注“未记录”。严禁虚构 Seed 或历史参数。
 
-## 按需读取
+## 核心工作流
 
-- 执行完整阶段流程时读 [skill/workflow.md](skill/workflow.md)。
-- 判断事实、Prompt 复现或匿名风险时读 [skill/safety.md](skill/safety.md)。
-- 生成或检查 Word 时读 [skill/output-spec.md](skill/output-spec.md)。
-- 生成主文档时使用 [templates/competition-statement.md](templates/competition-statement.md)；提示词记录、极简报告和导出检查分别使用同目录下的对应模板。
+`Final Artwork → Artwork Analysis → Workflow Reconstruction → Reconstructed Assets → Prompt Reconstruction → Parameter Suggestions → Creation Statement → DOCX`
+
+## 按需读取索引
+
+- **逆向重构与垫图/阶段生成**：阅读 [skill/reconstruction.md](skill/reconstruction.md)
+- **执行完整 8 阶段详细流程**：阅读 [skill/workflow.md](skill/workflow.md)
+- **真实性底线与版权/IP 审查**：阅读 [skill/safety.md](skill/safety.md)
+- **Stage-Centric Word 输出规范**：阅读 [skill/output-spec.md](skill/output-spec.md)
+- **说明书主模板**：使用 [templates/competition-statement.md](templates/competition-statement.md)

@@ -1,15 +1,15 @@
----
+﻿---
 trigger: model_decision
-description: 整理高校 AIGC 竞赛创作说明、AI 使用声明和过程证明材料。
+description: 高校 AIGC 竞赛创作说明书技能。用户仅需提供一张最终作品，即可自动分析画面、逆向重建合理创作流程与复现材料（垫图/阶段图/Prompt/参数），并输出结构完整的参赛说明文档；亦支持真实证据整理。
 ---
 
 # AIGC 竞赛创作说明
 
-先读取用户提供的赛事规则、最终作品、截图和元数据。将信息分为：
+处理高校 AIGC 竞赛创作说明书时，严格遵循以下规范：
+- 核心规范与双模式（Evidence / Reconstruction）：参见 [SKILL.md](../../SKILL.md)
+- 逆向重构流程与垫图/阶段生成：参见 [skill/reconstruction.md](../../skill/reconstruction.md)
+- 八阶段执行流程：参见 [skill/workflow.md](../../skill/workflow.md)
+- 真实性底线与版权审查：参见 [skill/safety.md](../../skill/safety.md)
+- Stage-Centric 说明书模板：参见 [templates/competition-statement.md](../../templates/competition-statement.md)
 
-- `[Verified]`：材料直接证明。
-- `[User-reported]`：用户口头说明，使用引述语气。
-- `[Reconstructed]`：由成品推断，明确标为复现建议。
-- `[Unknown]`：留空或写“未记录”。
-
-不得擅自填写 Seed、Steps、CFG、Sampler、模型精确版本、LoRA 权重、原始 Prompt、日期或生成次数。找不到官方规则时继续生成通用草稿，但必须写明尚未校验。生成 Word 前检查匿名、真实性、图片图注和元数据。
+用户仅提供最终作品时自动启动 Reconstruction Mode；有真实记录时优先使用 Evidence Mode。所有复现内容严格标记 [Reconstructed]，严禁虚构历史事实。
