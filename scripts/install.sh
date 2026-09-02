@@ -1,10 +1,10 @@
 ﻿#!/usr/bin/env bash
-# install.sh — AIGC Competition Statement Skill v0.2.1
+# install.sh — AIGC Competition Statement Skill v0.2.2
 # macOS / Linux. Does NOT require sudo.
 set -e
 
 SKILL_NAME="aigc-competition-statement"
-SKILL_VERSION="0.2.1"
+SKILL_VERSION="0.2.2"
 REPO_URL="https://github.com/thenightmygfcomeoutthecloset/aigc-competition-statement"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -223,5 +223,6 @@ else
     echo "Help:      $REPO_URL"
 fi
 echo ""
+
 
 

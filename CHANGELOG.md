@@ -5,23 +5,36 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.2.2] — 2026-09-03
+
+### Added & Focused
+
+- **核心定位全面聚焦（单图造齐全部历史材料）**：确立“单图输入 → 逆向造齐全部历史材料 → 自动满足赛事材料要求”核心主线。面对单张最终作品，全自动走通全流程，缺什么补什么，无悬挂占位，输出默认状态即为“✅ 过程材料齐备，满足赛事规范，完整可直接提交”。
+- **建立“赛事材料要求 → 逆向材料清单”自动映射机制**：
+  - 构图规划 / 早期草图 ──→ `reference_to_sketch`
+  - 轮廓线稿 / 引导垫图 ──→ `reference_to_lineart`
+  - 色彩氛围 / 大关系稿 ──→ `reference_to_color_block`
+  - 阶段生成初稿 (V1) ──→ `reference_to_intermediate_generation`
+  - 迭代深化成果 (V2) ──→ `reference_to_intermediate_generation`
+  - 演进提示词 ──→ 动态因果 Prompt 演进设计
+  - 生成参数配置 ──→ 工具自适应参数映射
+  - 创作说明文档 ──→ Stage-Centric 七大章节闭环 DOCX
+- **消除机械缺陷剧本，改为自然可信的演进因果**：删除预先编造的“V1 一定背景空洞、光影不足”套路台词。改为真实对比流程：生成初稿 V1 → 视觉比对最终成图 → 诊断实际存在的演进差距 → 针对性调整 Prompt/参数 → 迭代深化。
+- **阶段管线动态化（Dynamic Stage Graph）**：根据作品特征动态推导 Stage Graph（文生图概念迭代、线稿引导图生图、多元素分层合成），阶段数量做到 Minimal but Sufficient。
+- **参数适配工具机制**：不再无脑套用 SD 的 Steps/CFG/Denoising。根据所选工具输出有效参数（如 MJ 输出 `--ar`/`--stylize`，DALL-E 等工具绝不硬造 Negative Prompt；Seed 统一标为未记录，严禁捏造具体数值）。
+- **工具严格区分**：明确区分“原始创作工具（未记录 / 基于特征推断）”与“本次复现工具（宿主环境能力 / 推荐平台）”，绝不将复现工具冒充为创作者当时的原始历史工具。
+- **命名与表述统一**：全仓库统一规范为“三工作模式”（Evidence Mode / Hybrid Mode / Reconstruction Mode），杜绝双模式与三模式混写。
+
+---
+
 ## [0.2.1] — 2026-09-03
 
 ### Fixed & Closed-Loop Architecture
 
-- **P0 根入口接入 Reconstruction Mode**：重构 `SKILL.md`，确立三模式分流路由（Evidence Mode / Hybrid Mode / Reconstruction Mode）。明确当用户仅提供单张最终成图时，不中断、不逼问补齐历史记录，强制跳转并阅读 `skill/reconstruction.md` 执行逆向推演。
-- **P0 模式驱动工作流（Mode-Driven Workflow）**：重写 `skill/workflow.md`，将主干彻底切换为模式驱动架构，确保单图输入下全自动进入完整闭环。
-- **P0 彻底清除模板中的“伪历史记录”与硬编码参数**：
-  - 清理 `templates/competition-statement.md` 中的默认 Photoshop 图层修整、曲线调色等伪造操作；确立人工后期阶段的**条件性输出准则**（无证据时如实说明纯 AI 直出，严禁强加 PS 和假截图）。
-  - 删除模板中写死的具体参数（Steps 30, CFG 7.0, Denoising 0.6 等），全面替换为建议复现范围（如 25–35 步 [Reconstructed]）或标注“未记录”。Seed 严禁编造具体数值。
-- **P0 新增 `skill/image-generation.md` 逆向图像生成规范**：
-  - 规范能力导向（Capability-Based）的图像生成算子（`reference_to_sketch`、`reference_to_color_block`、`reference_to_lineart`、`reference_to_intermediate_generation`）。
-  - 强制要求复现垫图必须更早、更粗糙、更简化，严禁生成高保真最终成品克隆。
-  - 阶段性 AI 中间稿必须包含合理阶段缺陷，为后续 Prompt 调整建立因果依据。
-  - 明确 Fallback 降级：宿主缺少生图能力时，输出精细生图指令并标注占位，严禁凭空编造假图片文件路径，并在检查中标记 `Required Visual Evidence Missing`。
-- **新增禁止生成假软件界面证据铁律**：在 `skill/safety.md` 中明令禁止利用 AI 生成 Photoshop 图层工程窗口、ComfyUI 节点截图、WebUI 历史界面等冒充真实操作证据。
-- **新增单图启动实战案例**：新增 `examples/final-image-only.md`，完整演示从 `final.png` 自动化逆向推演、生成构图草图与阶段初稿、演进 Prompt 及 Stage-Centric 文档全过程。
-- **多端适配器与安装器同步**：更新 Cursor、Codex、Windsurf 及 Claude 轻量适配层；安装脚本版本同步提升至 `0.2.1`。
+- 根入口接入 Reconstruction Mode，增加三模式分流路由。
+- 彻底清理模板中的默认 Photoshop 伪操作与写死参数。
+- 规范能力导向的图像生成与 Fallback 降级。
+- 严禁生成假的软件操作界面截图。
 
 ---
 
@@ -29,8 +42,7 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- 初始引入 Reconstruction Mode 与 Stage-Centric 阶段式架构。
-- 引入知识产权（IP Check）与提交流程审查。
+- 引入 Reconstruction Mode 与 Stage-Centric 架构初版。
 
 ---
 
@@ -39,12 +51,3 @@ This project follows [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - Adapters 全面 Thin 化，确立 Single Source of Truth。
-- 移除了 Danbooru 刻板语法，实现 Prompt 平台自适应。
-
----
-
-## [0.1.2] — 2026-08-31
-
-### Fixed
-
-- SKILL.md 移至根目录，修复原生发现与各平台安装路径。
