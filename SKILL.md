@@ -5,30 +5,42 @@ description: 面向大广赛、新媒体创意节、学院奖等高校赛事的 
 
 # AIGC 竞赛创作说明书
 
-帮助创作者从一张最终 AI 作品自动逆向重构合理的创作全流程，或将已有真实材料整理为规范、可追溯的高校竞赛提交材料。
+用户只需提供一张最终 AI 生成作品，即可自动分析作品、逆向重建合理的创作流程、生成必要的复现过程材料，并最终输出结构完整、可用于竞赛提交的 AIGC 创作说明文档；同时也原生支持整理创作者保留的真实过程材料。
 
-## 核心工作模式
+## 模式路由与执行分流
 
-- **Reconstruction Mode（逆向重构模式）**：用户仅提供一张最终作品图或材料严重缺失时自动启用。自动完成画面结构化分析、工作流推导、逆向生成复现垫图（如线稿/草图）、阶段视觉结果、演进 Prompt（V1/V2/V3）与参数建议，组织完整说明书。
-- **Evidence Mode（真实证据模式）**：用户已提供原始 Prompt、垫图、工作流截图或参数时启用。直接整理真实证据，严禁无必要替代。
+用户提交作品后，Agent 根据材料完备度自动分流：
+
+```text
+用户提交作品
+↓
+检查现有创作材料
+↓
+├── 原始过程材料充分 (Prompt/垫图/参数/截图齐全)
+│   → 启动 Evidence Mode (优先使用真实证据，不生成多余替代品)
+│
+├── 材料部分缺失 (如仅有工具名或口述思路，缺少草图或Prompt)
+│   → 启动 Hybrid Mode (真实材料标注 Verified/User-reported，仅对缺失环节进行重构)
+│
+└── 只有最终作品或过程材料严重缺失
+    → 启动 Reconstruction Mode (自动逆向推演全流程)
+    → MUST READ skill/reconstruction.md
+```
 
 ## 证据等级与优先级
 
 `[Verified]` > `[User-reported]` > `[Reconstructed]` > `[Unknown]`
 
-- `[Verified]`：文件、截图、元数据直接证明，直接陈述。
-- `[User-reported]`：创作者口述，使用引述语气。
+- `[Verified]`：文件、截图、草图原件、元数据直接证明，直接客观陈述。
+- `[User-reported]`：创作者口头表述，使用引述语气。
 - `[Reconstructed]`：基于最终作品逆向分析与复现生成，明确标为复现内容，非原始历史记录。
-- `[Unknown]`：无法确认，留空或标注“未记录”。严禁虚构 Seed 或历史参数。
-
-## 核心工作流
-
-`Final Artwork → Artwork Analysis → Workflow Reconstruction → Reconstructed Assets → Prompt Reconstruction → Parameter Suggestions → Creation Statement → DOCX`
+- `[Unknown]`：无法确认，如实留空或标为“未记录”。严禁脑补 Seed 或历史实测参数。
 
 ## 按需读取索引
 
-- **逆向重构与垫图/阶段生成**：阅读 [skill/reconstruction.md](skill/reconstruction.md)
-- **执行完整 8 阶段详细流程**：阅读 [skill/workflow.md](skill/workflow.md)
-- **真实性底线与版权/IP 审查**：阅读 [skill/safety.md](skill/safety.md)
-- **Stage-Centric Word 输出规范**：阅读 [skill/output-spec.md](skill/output-spec.md)
-- **说明书主模板**：使用 [templates/competition-statement.md](templates/competition-statement.md)
+- **逆向重构模式核心规范**：[skill/reconstruction.md](skill/reconstruction.md)
+- **逆向图像生成与 Fallback 规范**：[skill/image-generation.md](skill/image-generation.md)
+- **八阶段详细工作流与模式驱动**：[skill/workflow.md](skill/workflow.md)
+- **真实性底线、反伪造与 IP 审查**：[skill/safety.md](skill/safety.md)
+- **Stage-Centric Word 排版标准**：[skill/output-spec.md](skill/output-spec.md)
+- **竞赛说明书标准模板**：[templates/competition-statement.md](templates/competition-statement.md)

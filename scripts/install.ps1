@@ -1,4 +1,4 @@
-﻿# PowerShell Install Script — AIGC Competition Statement Skill v0.2.0
+﻿# PowerShell Install Script — AIGC Competition Statement Skill v0.2.1
 # Compatible with Windows PowerShell 5.1+ and PowerShell 7+
 # Does NOT require admin privileges.
 
@@ -10,7 +10,7 @@ param(
 )
 
 $SKILL_NAME = "aigc-competition-statement"
-$SKILL_VERSION = "0.2.0"
+$SKILL_VERSION = "0.2.1"
 $REPO_URL = "https://github.com/thenightmygfcomeoutthecloset/aigc-competition-statement"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -203,4 +203,5 @@ if ($DryRun) {
     Write-Host "Help:      $REPO_URL"
 }
 Write-Host ""
+
 

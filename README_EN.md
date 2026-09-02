@@ -1,48 +1,48 @@
 ﻿# AIGC Competition Statement
 
-> Provide only a final AI-generated artwork to automatically analyze the image, reverse-engineer a plausible creation workflow, reconstruct necessary input sketches/prompts/parameters, and generate a fully structured AIGC competition statement document.
+> **Provide only a final AI-generated artwork to automatically analyze the image, reverse-engineer a plausible creation workflow, generate necessary reconstructed input sketches and stage results, and output a fully structured AIGC competition statement document.**
 
-[![version](https://img.shields.io/badge/version-0.2.0-blue)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-0.2.1-blue)](CHANGELOG.md)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 An Agent Skill for creating honest, reviewable AIGC creation statements for Chinese university creative competitions (大广赛, 新媒体创意节, 学院奖).
 
-When authentic records are provided, it prioritizes verified evidence (Evidence Mode); when records are missing, it switches to Reconstruction Mode. All reconstructed materials are strictly flagged and disclaimed.
-
 ---
 
-## Dual Modes
+## Three Core Modes
 
-- **Reconstruction Mode**: User only provides a final artwork. The skill performs multi-dimensional visual analysis, infers a creation pipeline, reverse-engineers input drafts (sketches/lineart), visual stage progressions, evolving Prompts (V1/V2/V3), and suggested parameters.
-- **Evidence Mode**: User has provided authentic prompts, sketches, screenshots, or parameters. Organizes verified evidence without unnecessary replacements.
+- **Reconstruction Mode**: Activated when the user provides ONLY a final artwork. Performs multi-dimensional visual analysis, infers a creation pipeline, invokes image generation capabilities to render reconstructed sketches and intermediate stages, reconstructs evolving Prompts with causal adjustment reasons, and builds a stage-centric statement. Never stops to force the user for historical records.
+- **Hybrid Mode**: Activated when partial authentic materials are provided. Authentic materials are preserved as Verified/User-reported; only missing stages are reconstructed.
+- **Evidence Mode**: Activated when full authentic evidence is provided. Directly organizes authentic materials without unnecessary substitutions.
 
 ---
 
 ## Stage-Centric Evidence Architecture
 
-Organized around creation stages rather than isolated screenshots:
+Organized strictly around creation stages rather than isolated screenshot categories:
 
 $$\text{Input (Reference / Sketch)} \longrightarrow \text{Tool} \longrightarrow \text{Prompt} \longrightarrow \text{Parameters} \longrightarrow \text{Output} \longrightarrow \text{Adjustment}$$
 
 ### Seven Standard Sections
 1. Basic Artwork Information
 2. Creative Rationale & Design Intent
-3. Stage-by-Stage Creation Process (Stage 1 to Stage 4)
+3. Stage-by-Stage Creation Process (Conditional post-processing: no fake Photoshop defaults)
 4. AIGC Toolchain & Human-AI Division
 5. Master Summary Table (Input → Tool → Prompt → Parameters → Output)
-6. Copyright, Source, and Originality Statements
+6. Copyright, Source, and Originality Statements (IP check)
 7. Reconstructed Materials Disclaimer
 
 ---
 
-## Evidence Levels
+## Evidence Levels & Anti-Hallucination
 
 $$\text{[Verified]} > \text{[User-reported]} > \text{[Reconstructed]} > \text{[Unknown]}$$
 
-- `[Verified]`: Direct material evidence (files, original sketches, metadata).
-- `[User-reported]`: Verbal creator account.
-- `[Reconstructed]`: Inferred from artwork analysis; explicitly noted as non-historical reproduction.
-- `[Unknown]`: Unrecorded facts (left blank or explicitly marked "未记录").
+- Never fabricate historical Prompts.
+- Never fabricate historical parameters (Seed is always noted as unrecorded).
+- Strictly forbid generating fake software UI screenshots (Photoshop, ComfyUI, WebUI, etc.) and claiming them as authentic evidence.
+- Never claim unverified IP as dispute-free (flag as `Requires User Confirmation`).
+- If host image tools are missing and images cannot be rendered, flag `Required Visual Evidence Missing`.
 
 ---
 

@@ -5,27 +5,20 @@ alwaysApply: false
 
 # AIGC 竞赛创作说明书生成技能
 
-## 核心定位
+## 核心定位与自主执行
 
-用户只需提供一张最终 AI 生成作品，Skill 即可自动逆向推导合理创作工作流、生成复现垫图（如手绘草图/线稿）、阶段视觉结果、演进 Prompt（V1/V2/V3）与参数建议，输出结构完整的竞赛说明文案；同时也支持整理用户提供的真实证据（Evidence Mode）。
+用户只需提供一张最终 AI 作品（无 Prompt、参数或草图），Skill 自动进入 **Reconstruction Mode**，严禁中断流程逼问用户补齐材料！自动完成画面深度分析、逆向推导创作管线、实际调用图像工具生成复现草图与阶段图、重构因果演进 Prompt 与建议参数，最终输出 Stage-Centric 竞赛说明文案。
 
-## 触发条件
+若用户提供了真实原始材料，则启动 **Evidence Mode** 或 **Hybrid Mode**，优先使用真实记录。
 
-当用户提到以下内容时激活：
-- AIGC 创作说明 / AI 声明 / 比赛过程文案 / 创作说明书 / AIGC 竞赛文案
-- 大广赛 / 新媒体节 / 新媒体创意节 / 学院奖 / 高校数字媒体与 AIGC 竞赛
-- 只有最终作品图需要反推生成比赛说明、Prompt 记录或垫图过程
+## 执行指令（Single Source of Truth）
 
-不触发：普通文案写作、与竞赛提交无关的通用咨询。
+严格遵循统一规则源：
+1. 核心规范与三模式路由：阅读 [SKILL.md](../../SKILL.md)
+2. 逆向重构模式执行标准：阅读 [skill/reconstruction.md](../../skill/reconstruction.md)
+3. 图像材料生成与 Fallback：阅读 [skill/image-generation.md](../../skill/image-generation.md)
+4. 详细八阶段工作流：阅读 [skill/workflow.md](../../skill/workflow.md)
+5. 真实性红线与 IP 审查：阅读 [skill/safety.md](../../skill/safety.md)
+6. 阶段闭环说明书模板：使用 [templates/competition-statement.md](../../templates/competition-statement.md)
 
-## 执行指令
-
-严格遵循单一事实源（Single Source of Truth）：
-1. 核心规范与双模式路由：阅读 [SKILL.md](../../SKILL.md)
-2. 逆向重构模式与垫图/阶段生成：阅读 [skill/reconstruction.md](../../skill/reconstruction.md)
-3. 详细八阶段工作流：阅读 [skill/workflow.md](../../skill/workflow.md)
-4. 真实性、版权检查与防伪造底线：阅读 [skill/safety.md](../../skill/safety.md)
-5. 阶段证据链排版规范：阅读 [skill/output-spec.md](../../skill/output-spec.md)
-6. 最终输出模板：使用 [templates/competition-statement.md](../../templates/competition-statement.md)
-
-优先级严格遵循 `Verified > User-reported > Reconstructed > Unknown`。严禁将 Reconstructed 内容伪称为原始历史记录。
+优先级：`Verified > User-reported > Reconstructed > Unknown`。严禁将 Reconstructed 内容标为 Verified，严禁生成伪造的软件界面截屏。
