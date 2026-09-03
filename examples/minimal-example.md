@@ -1,4 +1,4 @@
-﻿# 示例：仅提供最终成品的最小调用回归基准（Minimal Regression Fixture）
+# 示例：仅提供最终成品的最小调用回归基准（Minimal Regression Fixture）
 
 > 本示例作为最严苛的自动化回归测试基准：
 > **输入仅有单张最终成图 `final.png`**，不依赖创作者提供任何额外材料。
@@ -24,10 +24,10 @@ Agent 启动 Reconstruction Mode，自动创建并解析权威资产清单：
 2. `reconstructed_sketch` -> `01_reconstructed_sketch.png` (`reference_to_sketch`) [Reconstructed]
 3. `reconstructed_lineart` -> `01_reconstructed_lineart.png` (`reference_to_lineart`) [Reconstructed]
 4. `reconstructed_color_block` -> `01_reconstructed_color_block.png` (`reference_to_color_block`) [Reconstructed]
-5. `generation_v1` -> `02_reconstructed_generation_v1.png` (`reference_to_intermediate_generation`) [Reconstructed]
-6. `generation_v2` -> `03_reconstructed_generation_v2.png` (`reference_to_intermediate_generation`) [Reconstructed]
-7. `prompt_v1` -> Prompt V1 初稿提示词 [Reconstructed]
-8. `prompt_v2` -> Prompt V2 依据真实比对差距深化的提示词 [Reconstructed]
+5. `generation_v1` -> 真实后端生成的同一作品完整初稿 [Reconstructed]
+6. `generation_request_v1` / `generation_record_v1` -> 调用前请求与调用后执行证据
+7. `difference_analysis_v1` / `adjustment_reason_v1` -> V1 与 Final 的实测诊断
+8. 按停止条件选择直接进入 Final，或生成 `generation_v2/v3/...`
 9. `parameter_record` -> 适配复现工具的参数配置表（Seed 标为未记录） [Reconstructed]
 10. `prompt_record` -> `prompt-record.md` 阶段提示词记录表 [Reconstructed]
 11. `stage_process_record` -> `stage_graph.json` 动态管线记录 [Reconstructed]

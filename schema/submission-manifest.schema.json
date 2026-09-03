@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/aigc-competition-statement/submission-manifest.schema.json",
+  "title": "AIGC Competition Submission Manifest v0.3.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "mode", "artwork", "creative_rationale", "provenance", "assets", "generation_records", "prompt_record", "parameter_record", "stage_graph", "disclaimer"],
+  "properties": {
+    "schema_version": {"const": "0.3.0"},
+    "mode": {"enum": ["Evidence Mode", "Hybrid Mode", "Reconstruction Mode"]},
+    "artwork": {"$ref": "#/$defs/artwork"},
+    "creative_rationale": {"$ref": "#/$defs/rationale"},
+    "provenance": {"$ref": "#/$defs/provenance"},
+    "assets": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/asset"}},
+    "generation_records": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/generationRecord"}},
+    "prompt_record": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/promptVersion"}},
+    "parameter_record": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/parameterVersion"}},
+    "stage_graph": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/stage"}},
+    "disclaimer": {"$ref": "#/$defs/nonEmpty"}
+  },
+  "$defs": {
+    "nonEmpty": {"type": "string", "minLength": 1},
+    "evidence": {"enum": ["[Verified]", "[User-reported]", "[Reconstructed]", "[Unknown]"]},
+    "scalar": {"type": ["string", "number", "integer", "boolean"]},
+    "artwork": {"type": "object", "additionalProperties": false, "required": ["title", "competition", "type", "theme", "pipeline"], "properties": {"title": {"$ref": "#/$defs/nonEmpty"}, "competition": {"$ref": "#/$defs/nonEmpty"}, "type": {"$ref": "#/$defs/nonEmpty"}, "theme": {"$ref": "#/$defs/nonEmpty"}, "pipeline": {"$ref": "#/$defs/nonEmpty"}}},
+    "rationale": {"type": "object", "additionalProperties": false, "required": ["background", "visual_concept", "ai_collaboration"], "properties": {"background": {"$ref": "#/$defs/nonEmpty"}, "visual_concept": {"$ref": "#/$defs/nonEmpty"}, "ai_collaboration": {"$ref": "#/$defs/nonEmpty"}}},
+    "claim": {"type": "object", "additionalProperties": false, "required": ["value", "evidence_level", "confirmation_source"], "properties": {"value": {"$ref": "#/$defs/nonEmpty"}, "evidence_level": {"enum": ["[User-reported]", "[Unknown]"]}, "confirmation_source": {"type": ["string", "null"]}}},
+    "provenance": {"type": "object", "additionalProperties": false, "required": ["copyright", "originality", "original_tool"], "properties": {"copyright": {"$ref": "#/$defs/claim"}, "originality": {"$ref": "#/$defs/claim"}, "original_tool": {"$ref": "#/$defs/claim"}}},
+    "asset": {"type": "object", "additionalProperties": false, "required": ["id", "path", "evidence_level", "sha256", "size_bytes", "provenance"], "properties": {"id": {"$ref": "#/$defs/nonEmpty"}, "path": {"$ref": "#/$defs/nonEmpty"}, "evidence_level": {"$ref": "#/$defs/evidence"}, "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}, "size_bytes": {"type": ["integer", "null"], "minimum": 1}, "provenance": {"enum": ["provided_input", "current_reconstruction_output", "verified_historical_asset"]}}},
+    "evolution": {"type": "object", "additionalProperties": false, "required": ["keep", "modify", "add", "reduce", "reason"], "properties": {"keep": {"type": "array", "items": {"$ref": "#/$defs/nonEmpty"}}, "modify": {"type": "array", "items": {"$ref": "#/$defs/nonEmpty"}}, "add": {"type": "array", "items": {"$ref": "#/$defs/nonEmpty"}}, "reduce": {"type": "array", "items": {"$ref": "#/$defs/nonEmpty"}}, "reason": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/nonEmpty"}}}},
+    "generationRecord": {"type": "object", "additionalProperties": false, "required": ["version", "stage_id", "backend", "mode", "model", "input_assets", "prompt", "negative_prompt", "parameters", "output", "status", "generated_at", "request_asset_id", "record_asset_id", "difference_analysis_asset_id", "adjustment_reason_asset_id", "complete_artwork", "artifact_provenance", "backend_metadata"], "properties": {"version": {"pattern": "^v[1-9][0-9]*$"}, "stage_id": {"pattern": "^generation_v[1-9][0-9]*$"}, "backend": {"$ref": "#/$defs/nonEmpty"}, "mode": {"$ref": "#/$defs/nonEmpty"}, "model": {"$ref": "#/$defs/nonEmpty"}, "input_assets": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/nonEmpty"}}, "prompt": {"$ref": "#/$defs/nonEmpty"}, "negative_prompt": {"type": "string"}, "parameters": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/scalar"}}, "output": {"$ref": "#/$defs/nonEmpty"}, "status": {"const": "success"}, "generated_at": {"$ref": "#/$defs/nonEmpty"}, "request_asset_id": {"$ref": "#/$defs/nonEmpty"}, "record_asset_id": {"$ref": "#/$defs/nonEmpty"}, "difference_analysis_asset_id": {"$ref": "#/$defs/nonEmpty"}, "adjustment_reason_asset_id": {"$ref": "#/$defs/nonEmpty"}, "complete_artwork": {"const": true}, "artifact_provenance": {"enum": ["current_reconstruction_output", "verified_historical_asset"]}, "backend_metadata": {"type": "object"}}},
+    "promptVersion": {"type": "object", "additionalProperties": false, "required": ["version", "prompt", "evolution", "source_record_asset_id", "source_difference_asset_id", "source_adjustment_reason_asset_id"], "properties": {"version": {"pattern": "^v[1-9][0-9]*$"}, "prompt": {"$ref": "#/$defs/nonEmpty"}, "evolution": {"$ref": "#/$defs/evolution"}, "source_record_asset_id": {"$ref": "#/$defs/nonEmpty"}, "source_difference_asset_id": {"type": ["string", "null"]}, "source_adjustment_reason_asset_id": {"type": ["string", "null"]}}},
+    "parameterVersion": {"type": "object", "additionalProperties": false, "required": ["version", "backend", "model", "mode", "parameters", "source_record_asset_id"], "properties": {"version": {"pattern": "^v[1-9][0-9]*$"}, "backend": {"$ref": "#/$defs/nonEmpty"}, "model": {"$ref": "#/$defs/nonEmpty"}, "mode": {"$ref": "#/$defs/nonEmpty"}, "parameters": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/scalar"}}, "source_record_asset_id": {"$ref": "#/$defs/nonEmpty"}}},
+    "stageRef": {"type": "object", "additionalProperties": false, "required": ["asset_id", "label", "evidence_level"], "properties": {"asset_id": {"$ref": "#/$defs/nonEmpty"}, "label": {"$ref": "#/$defs/nonEmpty"}, "evidence_level": {"$ref": "#/$defs/evidence"}}},
+    "stage": {"type": "object", "additionalProperties": false, "required": ["id", "kind", "title", "purpose", "version", "inputs", "outputs", "source_record_asset_id", "evidence_level"], "properties": {"id": {"$ref": "#/$defs/nonEmpty"}, "kind": {"enum": ["input_design", "generation", "difference_analysis", "final"]}, "title": {"$ref": "#/$defs/nonEmpty"}, "purpose": {"$ref": "#/$defs/nonEmpty"}, "version": {"type": ["integer", "null"], "minimum": 1}, "inputs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/stageRef"}}, "outputs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/stageRef"}}, "source_record_asset_id": {"type": ["string", "null"]}, "evidence_level": {"$ref": "#/$defs/evidence"}}}
+  }
+}

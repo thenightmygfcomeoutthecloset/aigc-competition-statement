@@ -1,4 +1,4 @@
-﻿__pycache__/
+__pycache__/
 *.py[cod]
 *$py.class
 *.backup_*
@@ -7,4 +7,6 @@ tests/e2e_output/
 output/
 .venv/
 env/
+.test-work/
+.pytest_cache/
 *.docx.tmp

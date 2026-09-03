@@ -1,11 +1,11 @@
-﻿---
+---
 description: "AIGC competition statement skill for Chinese university competitions (大广赛, 新媒体节, 学院奖). Single Image Input -> Automatically Reconstructs Complete Process Materials (sketches, stage outputs, prompts, parameters) -> Outputs a complete, ready-to-submit stage-centric document."
 alwaysApply: false
 ---
 
 # AIGC 竞赛创作说明书生成技能
 
-## 核心使命（v0.2.2）
+## 核心使命（v0.3.0）
 
 **单图输入 → 逆向造齐全部历史材料 → 自动满足赛事材料要求**。
 用户只需提供一张最终 AI 作品，Skill 自动进入 **Reconstruction Mode**，不中断、不逼问，自动将赛事要求映射为补齐清单，逐项生成构图草图、阶段初稿、演进 Prompt 与适配参数，交付无占位悬挂、默认“完整可提交”的 Stage-Centric 竞赛说明文案。

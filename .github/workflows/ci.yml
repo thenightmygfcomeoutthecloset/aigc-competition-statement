@@ -1,0 +1,36 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    env:
+      REQUIRE_LIBREOFFICE: "1"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install LibreOffice and Chinese font
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice-writer fontconfig
+          mkdir -p "$HOME/.local/share/fonts"
+          cp assets/fonts/NotoSansSC-Regular.ttf "$HOME/.local/share/fonts/"
+          fc-cache -f "$HOME/.local/share/fonts"
+          fc-match -f '%{family}\n' 'Noto Sans SC' | grep -q 'Noto Sans SC'
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Repository consistency
+        run: python scripts/check_consistency.py
+      - name: Full regression suite
+        run: python -m pytest -q -ra
+      - name: CLI end-to-end verification
+        run: python tests/run_e2e_verification.py

@@ -1,10 +1,10 @@
-﻿# AGENTS.md — AIGC Competition Statement Skill
+# AGENTS.md — AIGC Competition Statement Skill
 
 This file instructs Codex on how to use the AIGC Competition Statement skill within this repository.
 
 ## Skill: aigc-competition-statement
 
-**Core Mission (v0.2.2)**:
+**Core Mission (v0.3.0)**:
 Single Image Input → Automatically Reconstruct Complete Process Materials → Satisfy Competition Requirements.
 When a user provides only a final AI artwork, automatically reverse-engineer all missing materials (sketches, intermediate generations, evolving Prompts, tool-adapted parameters) without blocking or interrogating the user. Output a complete, ready-to-submit stage-centric statement with zero dangling placeholders. Also supports Evidence Mode and Hybrid Mode.
 

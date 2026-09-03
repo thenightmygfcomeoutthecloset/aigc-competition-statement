@@ -1,165 +1,129 @@
-﻿#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-check_consistency.py - Repository consistency and integrity checker.
+#!/usr/bin/env python3
+"""Repository-wide consistency checks."""
 
-Validates:
-1. Version synchronization across READMEs, CHANGELOG, install scripts, and adapters.
-2. Mode namespace integrity (only Evidence, Hybrid, Reconstruction modes allowed).
-3. Canonical required asset schema references.
-4. Orphan templates detection.
-5. Relative Markdown links validity.
-6. Example asset consistency.
-"""
+from __future__ import annotations
 
-import os
-import sys
-if sys.stdout:
-    try:
-        sys.stdout.reconfigure(encoding='utf-8')
-        sys.stderr.reconfigure(encoding='utf-8')
-    except Exception:
-        pass
+import hashlib
 import re
+import sys
 from pathlib import Path
 
+from canonical_schema import DEFAULT_SCHEMA_PATH, asset_specs, load_canonical_schema
+
+for stream in (sys.stdout, sys.stderr):
+    if stream and hasattr(stream, "reconfigure"):
+        stream.reconfigure(encoding="utf-8", errors="replace")
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
-EXPECTED_VERSION = "0.2.2"
+EXPECTED_VERSION = str(load_canonical_schema()["manifest_version"])
 
 
-def check_version_sync() -> list:
+def check_version_sync() -> list[str]:
+    checks = {
+        "README.md": f"version-{EXPECTED_VERSION}-blue",
+        "README_EN.md": f"version-{EXPECTED_VERSION}-blue",
+        "CHANGELOG.md": f"## [{EXPECTED_VERSION}]",
+        "scripts/install.ps1": f'$SKILL_VERSION = "{EXPECTED_VERSION}"',
+        "scripts/install.sh": f'SKILL_VERSION="{EXPECTED_VERSION}"',
+    }
     errors = []
-    
-    # 1. README.md badge
-    readme_path = REPO_ROOT / "README.md"
-    if readme_path.exists():
-        content = readme_path.read_text(encoding="utf-8")
-        if f"version-{EXPECTED_VERSION}-blue" not in content:
-            errors.append(f"README.md badge does not match version {EXPECTED_VERSION}")
-            
-    # 2. README_EN.md badge
-    readme_en_path = REPO_ROOT / "README_EN.md"
-    if readme_en_path.exists():
-        content = readme_en_path.read_text(encoding="utf-8")
-        if f"version-{EXPECTED_VERSION}-blue" not in content:
-            errors.append(f"README_EN.md badge does not match version {EXPECTED_VERSION}")
-            
-    # 3. CHANGELOG.md
-    changelog_path = REPO_ROOT / "CHANGELOG.md"
-    if changelog_path.exists():
-        content = changelog_path.read_text(encoding="utf-8")
-        if f"## [{EXPECTED_VERSION}]" not in content:
-            errors.append(f"CHANGELOG.md missing header for [{EXPECTED_VERSION}]")
-            
-    # 4. install.ps1
-    install_ps1 = REPO_ROOT / "scripts" / "install.ps1"
-    if install_ps1.exists():
-        content = install_ps1.read_text(encoding="utf-8")
-        if f'SKILL_VERSION = "{EXPECTED_VERSION}"' not in content:
-            errors.append(f"install.ps1 does not have SKILL_VERSION = \"{EXPECTED_VERSION}\"")
-            
-    # 5. install.sh
-    install_sh = REPO_ROOT / "scripts" / "install.sh"
-    if install_sh.exists():
-        content = install_sh.read_text(encoding="utf-8")
-        if f'SKILL_VERSION="{EXPECTED_VERSION}"' not in content:
-            errors.append(f"install.sh does not have SKILL_VERSION=\"{EXPECTED_VERSION}\"")
-            
+    for relative, expected in checks.items():
+        path = REPO_ROOT / relative
+        if not path.is_file() or expected not in path.read_text(encoding="utf-8"):
+            errors.append(f"{relative} does not declare v{EXPECTED_VERSION}")
     return errors
 
 
-def check_mode_names() -> list:
+def check_mode_names() -> list[str]:
+    forbidden = ("Generic Draft Mode", "双模式", "双工作模式")
     errors = []
-    forbidden_terms = ["Generic Draft Mode", "双模式", "双工作模式"]
-    
-    text_files = list(REPO_ROOT.glob("*.md")) + list((REPO_ROOT / "skill").glob("*.md"))
-    for file in text_files:
-        content = file.read_text(encoding="utf-8")
-        for term in forbidden_terms:
-            if term in content:
-                errors.append(f"Forbidden mode term '{term}' found in {file.name}")
+    for path in list(REPO_ROOT.glob("*.md")) + list((REPO_ROOT / "skill").glob("*.md")):
+        text = path.read_text(encoding="utf-8")
+        errors.extend(f"Forbidden mode term {term!r} in {path.relative_to(REPO_ROOT)}" for term in forbidden if term in text)
     return errors
 
 
-def check_orphan_templates() -> list:
-    errors = []
-    templates_dir = REPO_ROOT / "templates"
-    if not templates_dir.exists():
-        return errors
-        
-    core_files = [REPO_ROOT / "SKILL.md"] + list((REPO_ROOT / "skill").glob("*.md"))
-    all_core_text = "\n".join([f.read_text(encoding="utf-8") for f in core_files if f.exists()])
-    
-    for tmpl in templates_dir.glob("*.md"):
-        if tmpl.name not in all_core_text:
-            errors.append(f"Orphan template detected: {tmpl.name} is not referenced in SKILL.md or skill/*.md")
-            
-    return errors
-
-
-def check_canonical_asset_references() -> list:
-    errors = []
-    reconstruction_path = REPO_ROOT / "skill" / "reconstruction.md"
-    if not reconstruction_path.exists():
-        return ["skill/reconstruction.md not found"]
-        
-    content = reconstruction_path.read_text(encoding="utf-8")
-    required_assets = [
-        "01_reconstructed_sketch.png",
-        "01_reconstructed_lineart.png",
-        "01_reconstructed_color_block.png",
-        "02_reconstructed_generation_v1.png",
-        "03_reconstructed_generation_v2.png",
-        "reference_to_sketch",
-        "reference_to_lineart",
-        "reference_to_color_block",
-        "reference_to_intermediate_generation"
+def check_orphan_templates() -> list[str]:
+    core = [REPO_ROOT / "SKILL.md", *list((REPO_ROOT / "skill").glob("*.md"))]
+    references = "\n".join(path.read_text(encoding="utf-8") for path in core)
+    return [
+        f"Orphan template: {path.name}"
+        for path in (REPO_ROOT / "templates").glob("*.md")
+        if path.name not in references
     ]
-    for asset in required_assets:
-        if asset not in content:
-            errors.append(f"Canonical asset/operator '{asset}' missing from reconstruction.md")
-            
+
+
+def check_canonical_schema() -> list[str]:
+    errors = []
+    schema = load_canonical_schema()
+    if Path(DEFAULT_SCHEMA_PATH) != REPO_ROOT / "schema" / "canonical-assets.yaml":
+        errors.append("Canonical schema path is not repository-relative")
+    if len(schema["assets"]) != len(set(schema["assets"])):
+        errors.append("Canonical schema contains duplicate asset ids")
+    if not schema.get("asset_families", {}).get("generation"):
+        errors.append("Canonical schema does not define the dynamic generation family")
+    relevant_scripts = ("reconstruct_assets.py", "run_pipeline.py", "build_docx.py", "manifest_schema.py")
+    filenames = [str(spec.get("filename")) for spec in asset_specs().values() if spec.get("filename")]
+    for name in relevant_scripts:
+        text = (REPO_ROOT / "scripts" / name).read_text(encoding="utf-8")
+        if "canonical_schema" not in text:
+            errors.append(f"{name} does not load canonical_schema")
+        for filename in filenames:
+            if filename in text:
+                errors.append(f"{name} hard-codes canonical filename {filename}")
+    reconstruction = (REPO_ROOT / "scripts" / "reconstruct_assets.py").read_text(encoding="utf-8")
+    for forbidden in ("visual_study", "addWeighted", "generation_v1", "generation_v2"):
+        if forbidden in reconstruction:
+            errors.append(f"reconstruct_assets.py contains forbidden generation fallback logic: {forbidden}")
     return errors
 
 
-def main():
-    print(f"Running repository consistency checks for v{EXPECTED_VERSION}...")
-    all_errors = []
-    
-    ver_errs = check_version_sync()
-    if ver_errs:
-        all_errors.extend(ver_errs)
-    else:
-        print("  [OK] Version synchronization across files")
-        
-    mode_errs = check_mode_names()
-    if mode_errs:
-        all_errors.extend(mode_errs)
-    else:
-        print("  [OK] Three mode namespace integrity")
-        
-    orphan_errs = check_orphan_templates()
-    if orphan_errs:
-        all_errors.extend(orphan_errs)
-    else:
-        print("  [OK] Zero orphan templates")
-        
-    asset_errs = check_canonical_asset_references()
-    if asset_errs:
-        all_errors.extend(asset_errs)
-    else:
-        print("  [OK] Canonical required asset schema references")
-        
-    if all_errors:
-        print(f"\nFAILED with {len(all_errors)} error(s):", file=sys.stderr)
-        for e in all_errors:
-            print(f"  - {e}", file=sys.stderr)
-        sys.exit(1)
-    else:
-        print("\nAll consistency checks passed successfully!")
-        sys.exit(0)
+def check_no_utf8_bom() -> list[str]:
+    errors = []
+    for path in REPO_ROOT.rglob("*"):
+        if not path.is_file() or ".git" in path.parts or path.suffix.lower() in {".ttf", ".png", ".jpg", ".docx", ".pyc"}:
+            continue
+        if path.read_bytes().startswith(b"\xef\xbb\xbf"):
+            errors.append(f"UTF-8 BOM found: {path.relative_to(REPO_ROOT)}")
+    return errors
+
+
+def check_font_bundle() -> list[str]:
+    font = REPO_ROOT / "assets" / "fonts" / "NotoSansSC-Regular.ttf"
+    sums = REPO_ROOT / "assets" / "fonts" / "SHA256SUMS"
+    license_file = REPO_ROOT / "assets" / "fonts" / "OFL.txt"
+    if not font.is_file() or not sums.is_file() or not license_file.is_file():
+        return ["Redistributable Noto Sans SC font bundle is incomplete"]
+    expected = sums.read_text(encoding="utf-8").split()[0]
+    actual = hashlib.sha256(font.read_bytes()).hexdigest()
+    return [] if expected == actual else ["Bundled font SHA-256 does not match SHA256SUMS"]
+
+
+def main() -> int:
+    groups = {
+        "version synchronization": check_version_sync,
+        "mode names": check_mode_names,
+        "template references": check_orphan_templates,
+        "canonical schema": check_canonical_schema,
+        "UTF-8 BOM": check_no_utf8_bom,
+        "font bundle": check_font_bundle,
+    }
+    errors: list[str] = []
+    print(f"Running repository consistency checks for v{EXPECTED_VERSION}")
+    for label, check in groups.items():
+        found = check()
+        if found:
+            errors.extend(found)
+            print(f"[FAIL] {label}")
+        else:
+            print(f"[OK] {label}")
+    if errors:
+        for error in errors:
+            print(f"- {error}", file=sys.stderr)
+        return 1
+    print("All consistency checks passed")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
-
+    raise SystemExit(main())

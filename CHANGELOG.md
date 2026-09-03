@@ -1,7 +1,32 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to this project will be documented in this file.
 This project follows [Semantic Versioning](https://semver.org/).
+
+---
+
+## [0.3.0] — 2026-09-03
+
+### Changed
+
+- 将 `generation_v1/v2/...` 重新定义为同一幅完整作品的连续版本快照，与 sketch、lineart、color block 前期输入彻底分离。
+- 新增厂商无关的 `scripts/image_generation_backend.py`；无真实后端时返回 `generation_backend_unavailable`，不再用滤镜伪造 generation。
+- 新增基于实际版本图与 Final 的 Difference Analysis、Adjustment Reason、Prompt Evolution 与动态停止条件。
+- 每轮保存 generation request、execution record、difference analysis 和 adjustment reason；Manifest、Prompt/Parameter Record、Stage Graph 和 DOCX 全部由 execution records 派生。
+- 支持 V1、V1→V2、V1→V2→V3 及更多受上限约束的 Minimal but Sufficient 路径。
+
+---
+
+## [0.2.3] — 2026-09-03
+
+### Fixed
+
+- 新增机器可读 `schema/canonical-assets.yaml`，流水线、Manifest、DOCX 和测试共用同一资产定义。
+- 新增 `scripts/run_pipeline.py`、严格 JSON Schema/Pydantic 与逐文件完整性校验。
+- 本地滤镜产物改为 Visual Study V1/V2，明确非真实生成式 AI 历史输出。
+- DOCX 按 Schema 嵌入全部图片并渲染 Prompt/Parameter Record，增加布局与 LibreOffice 回归入口。
+- 安装包纳入脚本、Schema、requirements 与 OFL 中文字体，并使用真实临时安装回归。
+- 未经用户确认的版权、原创性与原始工具统一标记为“未核验”。
 
 ---
 
@@ -51,4 +76,3 @@ This project follows [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - Adapters 全面 Thin 化，确立 Single Source of Truth。
-

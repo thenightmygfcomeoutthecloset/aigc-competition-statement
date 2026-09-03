@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 scan_placeholders.py - Scans rendered artifacts for leaked placeholders.
@@ -103,4 +103,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

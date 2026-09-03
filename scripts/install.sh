@@ -1,229 +1,79 @@
-﻿#!/usr/bin/env bash
-# install.sh — AIGC Competition Statement Skill v0.2.2
-# macOS / Linux. Does NOT require sudo.
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
 SKILL_NAME="aigc-competition-statement"
-SKILL_VERSION="0.2.2"
-REPO_URL="https://github.com/thenightmygfcomeoutthecloset/aigc-competition-statement"
+SKILL_VERSION="0.3.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
-
-DRY_RUN=false
 PLATFORM="${1:-}"
+shift || true
+DESTINATION_ROOT=""
+DRY_RUN=false
 UNINSTALL=false
+SKIP_FONT=false
 
-# Parse args
-for arg in "$@"; do
-    case "$arg" in
-        --dry-run) DRY_RUN=true ;;
-        --uninstall) UNINSTALL=true ;;
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --destination-root) DESTINATION_ROOT="$2"; shift 2 ;;
+        --dry-run) DRY_RUN=true; shift ;;
+        --uninstall) UNINSTALL=true; shift ;;
+        --skip-font-install) SKIP_FONT=true; shift ;;
+        *) echo "Unknown argument: $1" >&2; exit 2 ;;
     esac
 done
-# Remove flags, keep platform
-PLATFORM="${1:-}"
-if [[ "$PLATFORM" == --* ]]; then PLATFORM=""; fi
 
-echo ""
-echo "========================================"
-echo "  AIGC Competition Statement Skill"
-echo "  v$SKILL_VERSION"
-if [[ "$DRY_RUN" == true ]]; then echo "  [DRY RUN — no files will be changed]"; fi
-echo "========================================"
-echo ""
+case "$PLATFORM" in
+    antigravity) default_dest="$HOME/.gemini/config/skills/$SKILL_NAME" ;;
+    cursor) default_dest="$HOME/.cursor/skills/$SKILL_NAME" ;;
+    codex) default_dest="$HOME/.agents/skills/$SKILL_NAME" ;;
+    windsurf) default_dest="$(pwd)/.windsurf/rules/$SKILL_NAME.md" ;;
+    claude) default_dest="$(pwd)/$SKILL_NAME-project-instructions.md" ;;
+    *) echo "Usage: $0 {antigravity|cursor|codex|windsurf|claude} [options]" >&2; exit 2 ;;
+esac
+if [[ -n "$DESTINATION_ROOT" ]]; then destination="$DESTINATION_ROOT/$SKILL_NAME"; else destination="$default_dest"; fi
 
-# ── Platform Selection ────────────────────────────────────────────────────
-if [[ -z "$PLATFORM" ]]; then
-    echo "Which platform?"
-    echo "  1. Google Antigravity (AGY)     [Native Skill — ~/.gemini/config/skills/]"
-    echo "  2. Cursor                       [Native Skill — ~/.cursor/skills/]"
-    echo "  3. OpenAI Codex                 [Native Skill — ~/.agents/skills/]"
-    echo "  4. Windsurf                     [Project Rule — .windsurf/rules/]"
-    echo "  5. Claude                       [Project Instructions — manual paste]"
-    echo ""
-    read -rp "Enter number (1-5): " CHOICE
-    case "$CHOICE" in
-        1) PLATFORM="antigravity" ;;
-        2) PLATFORM="cursor" ;;
-        3) PLATFORM="codex" ;;
-        4) PLATFORM="windsurf" ;;
-        5) PLATFORM="claude" ;;
-        *) echo "Invalid choice. Exiting."; exit 1 ;;
-    esac
-fi
+echo "AIGC Competition Statement Skill v$SKILL_VERSION"
+echo "Target: $destination"
 
-show_plan() {
-    local src="$1" dest="$2" action="$3"
-    echo ""
-    echo "  Action   : $action"
-    echo "  Source   : $src"
-    echo "  Target   : $dest"
-    echo "  Backup   : ${dest}.backup_<timestamp> (if target exists)"
-    echo "  Uninstall: bash scripts/install.sh $PLATFORM --uninstall"
-    echo ""
-}
-
-safe_copy_skill() {
-    local src_root="$1" dest_dir="$2"
-    if [[ ! -d "$dest_dir" ]]; then
-        echo "  Creating directory: $dest_dir"
-        if [[ "$DRY_RUN" == false ]]; then mkdir -p "$dest_dir"; fi
-    else
-        local backup="${dest_dir}.backup_$(date +%Y%m%d_%H%M%S)"
-        echo "  Backup: $backup"
-        if [[ "$DRY_RUN" == false ]]; then cp -r "$dest_dir" "$backup"; fi
-    fi
-    for item in SKILL.md skill templates adapters README.md LICENSE; do
-        if [[ -e "$src_root/$item" ]]; then
-            if [[ "$DRY_RUN" == false ]]; then cp -r "$src_root/$item" "$dest_dir/"; fi
-        fi
-    done
-}
-
-safe_copy_file() {
-    local src="$1" dest="$2"
-    local destdir
-    destdir="$(dirname "$dest")"
-    if [[ ! -d "$destdir" ]]; then
-        if [[ "$DRY_RUN" == false ]]; then mkdir -p "$destdir"; fi
-    fi
-    if [[ -e "$dest" ]]; then
-        local backup="${dest}.backup_$(date +%Y%m%d_%H%M%S)"
-        if [[ "$DRY_RUN" == false ]]; then cp "$dest" "$backup"; fi
-    fi
-    if [[ "$DRY_RUN" == false ]]; then cp "$src" "$dest"; fi
-}
-
-safe_remove() {
-    local dest="$1"
-    if [[ -e "$dest" ]]; then
-        local uninstalled="${dest}.uninstalled_$(date +%Y%m%d_%H%M%S)"
-        echo "  Archiving: $dest -> $uninstalled"
-        if [[ "$DRY_RUN" == false ]]; then mv "$dest" "$uninstalled"; fi
-        echo "  [OK] Archived."
-    else
-        echo "  Not found: $dest — nothing to remove."
-    fi
-}
-
-# ── Uninstall ─────────────────────────────────────────────────────────────
 if [[ "$UNINSTALL" == true ]]; then
-    echo "Uninstalling from: $PLATFORM"
-    case "$PLATFORM" in
-        antigravity)
-            dest="$HOME/.gemini/config/skills/$SKILL_NAME"
-            show_plan "" "$dest" "Archive directory"
-            safe_remove "$dest"
-            ;;
-        cursor)
-            skill_dest="$HOME/.cursor/skills/$SKILL_NAME"
-            rule_dest="$HOME/.cursor/rules/${SKILL_NAME}.mdc"
-            show_plan "" "$skill_dest" "Archive directory"
-            safe_remove "$skill_dest"
-            if [[ -e "$rule_dest" ]]; then
-                safe_remove "$rule_dest"
-            fi
-            ;;
-        codex)
-            dest="$HOME/.agents/skills/$SKILL_NAME"
-            show_plan "" "$dest" "Archive directory"
-            safe_remove "$dest"
-            ;;
-        windsurf)
-            dest="$(pwd)/.windsurf/rules/aigc-competition-statement.md"
-            show_plan "" "$dest" "Archive file"
-            safe_remove "$dest"
-            ;;
-        claude)
-            echo "Claude Project Instructions are managed on the web."
-            echo "To uninstall: open claude.ai > Project > Project instructions > clear the AIGC content."
-            ;;
-        *)
-            echo "Unknown platform: $PLATFORM"
-            exit 1
-            ;;
-    esac
-    echo ""
-    if [[ "$DRY_RUN" == true ]]; then echo "[DRY RUN] No files were changed."; fi
+    if [[ -e "$destination" ]]; then
+        archive="${destination}.uninstalled_$(date +%Y%m%d_%H%M%S)"
+        if [[ "$DRY_RUN" == false ]]; then mv "$destination" "$archive"; fi
+        echo "Archived: $archive"
+    fi
     exit 0
 fi
 
-# ── Install ────────────────────────────────────────────────────────────────
-case "$PLATFORM" in
-
-    antigravity)
-        dest="$HOME/.gemini/config/skills/$SKILL_NAME"
-        show_plan "$REPO_ROOT" "$dest" "Copy skill components"
-        safe_copy_skill "$REPO_ROOT" "$dest"
-        if [[ "$DRY_RUN" == false ]]; then
-            echo "[OK] Antigravity skill installed at: $dest"
-            echo "     Antigravity will auto-detect it."
-        fi
-        ;;
-
-    cursor)
-        dest="$HOME/.cursor/skills/$SKILL_NAME"
-        show_plan "$REPO_ROOT" "$dest" "Copy as Cursor Native Skill (~/.cursor/skills/)"
-        safe_copy_skill "$REPO_ROOT" "$dest"
-        if [[ "$DRY_RUN" == false ]]; then
-            echo "[OK] Cursor skill installed at: $dest"
-            echo "     Cursor will discover it automatically."
-        fi
-        ;;
-
-    codex)
-        dest="$HOME/.agents/skills/$SKILL_NAME"
-        show_plan "$REPO_ROOT" "$dest" "Copy as Codex Native Skill (~/.agents/skills/)"
-        safe_copy_skill "$REPO_ROOT" "$dest"
-        if [[ "$DRY_RUN" == false ]]; then
-            echo "[OK] Codex skill installed at: $dest"
-            echo "     Codex will discover it from SKILL.md frontmatter."
-        fi
-        ;;
-
-    windsurf)
-        adapter_src="$REPO_ROOT/adapters/windsurf/aigc-competition-statement.md"
-        dest="$(pwd)/.windsurf/rules/aigc-competition-statement.md"
-        show_plan "$adapter_src" "$dest" "Copy Windsurf Rule file"
-        safe_copy_file "$adapter_src" "$dest"
-        if [[ "$DRY_RUN" == false ]]; then
-            echo "[OK] Windsurf rule installed at: $dest"
-        fi
-        ;;
-
-    claude)
-        adapter_src="$REPO_ROOT/adapters/claude/project-instructions.md"
-        echo "Claude uses Project Instructions (web-based)."
-        echo ""
-        echo "Steps:"
-        echo "  1. Open claude.ai and open or create a Project"
-        echo "  2. Click 'Project instructions'"
-        echo "  3. Paste the contents of:"
-        echo "     $adapter_src"
-        echo ""
-        if command -v cat &>/dev/null; then
-            echo "--- Content to paste ---"
-            cat "$adapter_src"
-            echo "--- End ---"
-        fi
-        ;;
-
-    *)
-        echo "Unknown platform: $PLATFORM"
-        echo "Valid: antigravity, cursor, codex, windsurf, claude"
-        exit 1
-        ;;
-esac
-
-echo ""
-if [[ "$DRY_RUN" == true ]]; then
-    echo "[DRY RUN] No files were changed. Remove --dry-run to execute."
+if [[ "$PLATFORM" == "windsurf" ]]; then
+    if [[ "$DRY_RUN" == false ]]; then mkdir -p "$(dirname "$destination")"; cp "$REPO_ROOT/adapters/windsurf/aigc-competition-statement.md" "$destination"; fi
+elif [[ "$PLATFORM" == "claude" ]]; then
+    if [[ "$DRY_RUN" == false ]]; then cp "$REPO_ROOT/adapters/claude/project-instructions.md" "$destination"; fi
 else
-    echo "Uninstall: bash scripts/install.sh $PLATFORM --uninstall"
-    echo "Help:      $REPO_URL"
+    if [[ -e "$destination" && -z "$DESTINATION_ROOT" ]]; then
+        backup="${destination}.backup_$(date +%Y%m%d_%H%M%S)"
+        if [[ "$DRY_RUN" == false ]]; then cp -R "$destination" "$backup"; fi
+        echo "Backup: $backup"
+    fi
+    if [[ "$DRY_RUN" == false ]]; then
+        mkdir -p "$destination"
+        for item in SKILL.md skill templates adapters agents scripts schema assets README.md LICENSE requirements.txt; do
+            [[ -e "$REPO_ROOT/$item" ]] || { echo "Required install item missing: $item" >&2; exit 1; }
+            cp -R "$REPO_ROOT/$item" "$destination/"
+        done
+        find "$destination/scripts" -maxdepth 1 -type f \( -name '*.py' -o -name '*.sh' \) -exec chmod 755 {} +
+    fi
 fi
-echo ""
 
+if [[ "$SKIP_FONT" == false && -z "$DESTINATION_ROOT" ]]; then
+    font_source="$REPO_ROOT/assets/fonts/NotoSansSC-Regular.ttf"
+    [[ -f "$font_source" ]] || { echo "Bundled redistributable font missing: $font_source" >&2; exit 1; }
+    if [[ "$(uname -s)" == "Darwin" ]]; then font_dir="$HOME/Library/Fonts"; else font_dir="$HOME/.local/share/fonts"; fi
+    if [[ "$DRY_RUN" == false ]]; then
+        mkdir -p "$font_dir"
+        cp "$font_source" "$font_dir/NotoSansSC-Regular.ttf"
+        command -v fc-cache >/dev/null 2>&1 && fc-cache -f "$font_dir" >/dev/null || true
+    fi
+    echo "Font installed: $font_dir/NotoSansSC-Regular.ttf"
+fi
 
-
-
+echo "Installed successfully: $destination"

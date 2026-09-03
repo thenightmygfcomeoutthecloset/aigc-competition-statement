@@ -1,0 +1,43 @@
+schema_version: "2.0"
+manifest_version: "0.3.0"
+evidence_levels: ["[Verified]", "[User-reported]", "[Reconstructed]", "[Unknown]"]
+
+# Fixed assets exist once per run. Versioned files use asset_families so the
+# number of complete generation snapshots can be chosen dynamically.
+assets:
+  final_artwork:
+    {type: image, filename: final.png, required: true, embed_in_docx: true, evidence_levels: ["[Verified]", "[User-reported]"]}
+  reconstructed_sketch:
+    {type: image, filename: 01_reconstructed_sketch.png, required: true, embed_in_docx: true, operator: reference_to_sketch, evidence_levels: ["[Reconstructed]"]}
+  reconstructed_lineart:
+    {type: image, filename: 01_reconstructed_lineart.png, required: true, embed_in_docx: true, operator: reference_to_lineart, evidence_levels: ["[Reconstructed]"]}
+  reconstructed_color_block:
+    {type: image, filename: 01_reconstructed_color_block.png, required: true, embed_in_docx: true, operator: reference_to_color_block, evidence_levels: ["[Reconstructed]"]}
+  artwork_analysis:
+    {type: json, filename: artwork-analysis.json, required: true, evidence_levels: ["[Reconstructed]", "[Verified]", "[User-reported]"]}
+  prompt_record:
+    {type: document, filename: prompt-record.md, required: true, evidence_levels: ["[Verified]", "[User-reported]", "[Reconstructed]"]}
+  parameter_record:
+    {type: document, filename: parameter-record.md, required: true, evidence_levels: ["[Verified]", "[User-reported]", "[Reconstructed]"]}
+  stage_process_record:
+    {type: json, filename: stage-graph.json, required: true, evidence_levels: ["[Verified]", "[User-reported]", "[Reconstructed]"]}
+  statement_docx:
+    {type: document, filename_pattern: "{title}_{competition}_AIGC说明书.docx", required: true, generated_output: true, evidence_levels: ["[Reconstructed]"]}
+
+asset_families:
+  generation:
+    {id_pattern: "generation_v{version}", filename_pattern: "{sequence:02d}_generation_v{version}.png", sequence_offset: 3, type: image, embed_in_docx: true, evidence_levels: ["[Reconstructed]", "[Verified]", "[User-reported]"], semantic: complete_artwork_version}
+  generation_request:
+    {id_pattern: "generation_request_v{version}", filename_pattern: "generation_requests/v{version}.json", type: json, evidence_levels: ["[Reconstructed]", "[Verified]", "[User-reported]"]}
+  generation_record:
+    {id_pattern: "generation_record_v{version}", filename_pattern: "generation_records/v{version}.json", type: json, evidence_levels: ["[Reconstructed]", "[Verified]", "[User-reported]"]}
+  difference_analysis:
+    {id_pattern: "difference_analysis_v{version}", filename_pattern: "difference_analysis/v{version}.json", type: json, evidence_levels: ["[Reconstructed]", "[Verified]", "[User-reported]"]}
+  adjustment_reason:
+    {id_pattern: "adjustment_reason_v{version}", filename_pattern: "adjustment_reasons/v{version}.json", type: json, evidence_levels: ["[Reconstructed]", "[Verified]", "[User-reported]"]}
+
+generation_policy:
+  minimum_versions: 1
+  default_max_versions: 3
+  absolute_max_versions: 6
+  semantic: "Every generation_vN is a complete snapshot of the same artwork."

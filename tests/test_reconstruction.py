@@ -1,249 +1,371 @@
-﻿#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-test_reconstruction.py - Comprehensive regression test suite for v0.2.2.
+#!/usr/bin/env python3
+"""Regression and causal-chain tests for the v0.3.0 pipeline."""
 
-Covers:
-1. test_reconstruction_final_image_only (full asset generation from single image)
-2. test_no_dangling_placeholders (zero placeholders across outputs)
-3. test_v2_required (generation_v2 cannot be skipped)
-4. test_prompt_evolution (prompt_v1 != prompt_v2, adjustment_reason exists)
-5. test_docx_embeds_generated_assets (images embedded in DOCX, captions present)
-6. test_mode_names (strictly Evidence, Hybrid, Reconstruction modes)
-7. test_version_sync (all versions == 0.2.2)
-8. test_examples_match_schema (examples align with canonical schema)
-9. test_installed_runtime_complete (installed directory has runtime scripts & modules)
-"""
+from __future__ import annotations
 
-import os
-import sys
+import copy
 import json
+import os
 import shutil
-import tempfile
-import unittest
+import subprocess
+import sys
+import uuid
+import hashlib
 from pathlib import Path
-from PIL import Image, ImageDraw
+from zipfile import ZipFile
+
 import docx
+import pytest
+from PIL import Image, ImageDraw
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(REPO_ROOT / "scripts"))
+SCRIPTS = REPO_ROOT / "scripts"
+sys.path.insert(0, str(SCRIPTS))
 
-import reconstruct_assets
 import build_docx
-import scan_placeholders
 import check_consistency
+from canonical_schema import docx_image_asset_ids, generation_policy, load_canonical_schema, versioned_asset
+from manifest_schema import ManifestValidationError, asset_path_map, sha256_file, validate_manifest_file
+from reconstruct_assets import MAX_INPUT_PIXELS, reconstruct_all_assets
+from render_docx import audit_rendered_pages, find_soffice, render_docx
+from run_pipeline import run_pipeline
 
 
-class TestAIGCReconstruction(unittest.TestCase):
+class RecordingBackend:
+    name = "test_fixture_generation_provider"
+    mode = "image_to_image"
+    model = "fixture-complete-artwork-model"
 
-    @classmethod
-    def setUpClass(cls):
-        cls.temp_dir = Path(tempfile.mkdtemp(prefix="aigc_test_"))
-        
-        # Create a sample test final artwork
-        cls.sample_image_path = cls.temp_dir / "final.png"
-        img = Image.new("RGB", (600, 800), color=(20, 30, 60))
-        draw = ImageDraw.Draw(img)
-        # Draw background shapes, gradients, and a central subject
-        draw.rectangle([50, 50, 550, 750], fill=(30, 45, 90), outline=(220, 180, 50), width=4)
-        draw.ellipse([200, 250, 400, 450], fill=(240, 200, 80), outline=(255, 255, 255), width=3)
-        draw.polygon([(300, 150), (250, 250), (350, 250)], fill=(80, 180, 220))
-        draw.line([(100, 700), (500, 700)], fill=(120, 220, 150), width=5)
-        img.save(str(cls.sample_image_path), format="PNG")
+    def __init__(self, snapshots: dict[str, Path]):
+        self.snapshots = snapshots
+        self.requests: list[dict] = []
 
-    @classmethod
-    def tearDownClass(cls):
-        if cls.temp_dir.exists():
-            shutil.rmtree(cls.temp_dir, ignore_errors=True)
-
-    def test_version_sync(self):
-        """test_version_sync: assert all version references == 0.2.2."""
-        errs = check_consistency.check_version_sync()
-        self.assertEqual(errs, [], f"Version sync errors found: {errs}")
-
-    def test_mode_names(self):
-        """test_mode_names: assert official modes are strictly Evidence, Hybrid, Reconstruction."""
-        errs = check_consistency.check_mode_names()
-        self.assertEqual(errs, [], f"Mode name violations found: {errs}")
-
-    def test_examples_match_schema(self):
-        """test_examples_match_schema: verify examples reflect canonical assets."""
-        examples_dir = REPO_ROOT / "examples"
-        for ex in ["final-image-only.md", "minimal-example.md", "full-example.md"]:
-            path = examples_dir / ex
-            self.assertTrue(path.exists(), f"Example {ex} missing")
-            content = path.read_text(encoding="utf-8")
-            self.assertIn("01_reconstructed_sketch.png", content)
-            self.assertIn("02_reconstructed_generation_v1.png", content)
-            self.assertIn("03_reconstructed_generation_v2.png", content)
-            self.assertIn("prompt-record", content)
-
-    def test_installed_runtime_complete(self):
-        """test_installed_runtime_complete: simulate install and verify complete runtime layout."""
-        sim_install_dir = self.temp_dir / "installed_runtime"
-        sim_install_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Simulate Safe-Copy-Skill
-        items = ["SKILL.md", "skill", "templates", "adapters", "scripts", "README.md", "LICENSE"]
-        for it in items:
-            src = REPO_ROOT / it
-            if src.exists():
-                dest = sim_install_dir / it
-                if src.is_dir():
-                    shutil.copytree(src, dest)
-                else:
-                    shutil.copy2(src, dest)
-                    
-        # Verify critical runtime assets
-        self.assertTrue((sim_install_dir / "SKILL.md").exists())
-        self.assertTrue((sim_install_dir / "skill" / "reconstruction.md").exists())
-        self.assertTrue((sim_install_dir / "skill" / "image-generation.md").exists())
-        self.assertTrue((sim_install_dir / "skill" / "workflow.md").exists())
-        self.assertTrue((sim_install_dir / "templates" / "competition-statement.md").exists())
-        self.assertTrue((sim_install_dir / "templates" / "prompt-record.md").exists())
-        self.assertTrue((sim_install_dir / "templates" / "evidence-checklist.md").exists())
-        self.assertTrue((sim_install_dir / "scripts" / "reconstruct_assets.py").exists())
-        self.assertTrue((sim_install_dir / "scripts" / "build_docx.py").exists())
-        self.assertTrue((sim_install_dir / "scripts" / "scan_placeholders.py").exists())
-
-    def test_reconstruction_final_image_only_and_pipeline(self):
-        """
-        Comprehensive test:
-        1. Generates all 5 visual assets from final.png;
-        2. Asserts V2 required;
-        3. Tests prompt evolution (V1 != V2, adjustment_reason exists);
-        4. Compiles real DOCX and asserts image embedding;
-        5. Scans for zero dangling placeholders.
-        """
-        out_dir = self.temp_dir / "pipeline_output"
-        out_dir.mkdir(parents=True, exist_ok=True)
-
-        # 1. Reconstruct all visual assets via scripts/reconstruct_assets.py
-        assets = reconstruct_assets.reconstruct_all_assets(str(self.sample_image_path), str(out_dir))
-        
-        # Verify 5 files exist and non-empty
-        expected_files = [
-            "01_reconstructed_sketch.png",
-            "01_reconstructed_lineart.png",
-            "01_reconstructed_color_block.png",
-            "02_reconstructed_generation_v1.png",
-            "03_reconstructed_generation_v2.png"
-        ]
-        for ef in expected_files:
-            file_path = out_dir / ef
-            self.assertTrue(file_path.exists(), f"Asset {ef} was not generated")
-            self.assertGreater(file_path.stat().st_size, 0, f"Asset {ef} is empty (0 bytes)")
-
-        # 2. Assert V2 exists (test_v2_required)
-        self.assertTrue((out_dir / "03_reconstructed_generation_v2.png").exists())
-
-        # 3. Prompt Evolution Verification (test_prompt_evolution)
-        prompt_v1 = "深邃星空古殿中央，发光几何神兽，金色与青蓝冷暖光照，中央纵深对称构图"
-        prompt_v2 = "深邃星空古殿中央，发光神兽鳞片微晶折射，丁达尔斜射体积光，漫反射光晕，超高清细节"
-        adjustment_reason = "经比对最终成图，初版主体形态已立，但边缘体积光较弥散，微晶折射层次未收敛，在 V2 中强化体积光与微晶描述"
-        
-        self.assertNotEqual(prompt_v1, prompt_v2)
-        self.assertTrue(len(adjustment_reason) > 10)
-
-        # 4. Construct Manifest and Stage Graph
-        stage_graph = [
-            {
-                "id": "stage_1",
-                "title": "阶段一：概念探索与构图规划",
-                "purpose": "明确建筑透视与核心神兽空间占位骨骼",
-                "inputs": [{"name": "构图草图", "filename": "01_reconstructed_sketch.png"}],
-                "tool": "概念构思手绘工具",
-                "tool_type": "概念手绘 / 设计规划",
-                "prompt": "[Reconstructed Prompt | 复现建议] 星空古殿与中央神兽空间透视大框架",
-                "parameters": "画幅比例 3:4",
-                "outputs": [{
-                    "filename": "01_reconstructed_sketch.png",
-                    "caption": "阶段一空间透视与主体占位草图",
-                    "evidence_level": "[Reconstructed]"
-                }],
-                "adjustment": "骨架确立，进入阶段二借助 AI 工具进行具象化生成",
-                "evidence_level": "[Reconstructed]"
-            },
-            {
-                "id": "stage_2",
-                "title": "阶段二：AIGC 基础生成与初稿输出",
-                "purpose": "将构图草图转化为具备基础色彩与光照的场景初稿",
-                "inputs": [{"name": "阶段一草图", "filename": "01_reconstructed_sketch.png"}],
-                "tool": "AI 图像生成模型",
-                "tool_type": "生成式 AI",
-                "prompt": f"[Reconstructed Prompt | 复现建议] {prompt_v1}",
-                "parameters": "采样步数范围 25–35 步 [Reconstructed], CFG 7.0, Seed 未记录",
-                "outputs": [{
-                    "filename": "02_reconstructed_generation_v1.png",
-                    "caption": "阶段二 AI 生成第一版初稿图像",
-                    "evidence_level": "[Reconstructed]"
-                }],
-                "adjustment": adjustment_reason,
-                "evidence_level": "[Reconstructed]"
-            },
-            {
-                "id": "stage_3",
-                "title": "阶段三：Prompt 迭代与视觉深化",
-                "purpose": "修正初稿光影缺陷，强化微晶质感与丁达尔光线",
-                "inputs": [{"name": "阶段二初版成果", "filename": "02_reconstructed_generation_v1.png"}],
-                "tool": "AI 迭代与优化工具",
-                "tool_type": "生成式 AI",
-                "prompt": f"[Reconstructed Prompt | 复现建议] {prompt_v2}",
-                "parameters": "建议重绘参数范围 0.55–0.65",
-                "outputs": [{
-                    "filename": "03_reconstructed_generation_v2.png",
-                    "caption": "阶段三多轮提示词优化后的高清渲染成果",
-                    "evidence_level": "[Reconstructed]"
-                }],
-                "adjustment": "光影聚集，微晶细节达到预期，完成具象生成",
-                "evidence_level": "[Reconstructed]"
-            }
-        ]
-
-        manifest_data = {
-            "mode": "Reconstruction Mode",
-            "artwork": {
-                "title": "深林微光",
-                "competition": "第十届大学生新媒体创意节",
-                "type": "数字概念插画",
-                "theme": "人与自然共生",
-                "pipeline": "构图草图引导图生图 + 多轮提示词深化（纯 AI 具象直出流程）",
-                "tool_environment": "原始创作工具：未记录（基于特征推断） / 本次复现工具：宿主生图能力"
-            },
-            "creative_rationale": {
-                "background": "本作品探讨人与自然在数字微光中的共生隐喻，探索生态纯粹性之美。",
-                "visual_concept": "采用深蓝与幽绿冷色基调，辅以金色高光对撞，垂直引导构图聚焦主体。",
-                "ai_collaboration": "利用 AI 高效计算复杂的漫反射与微晶发光材质，提升艺术探索效率。"
-            },
-            "stage_graph": stage_graph,
-            "disclaimer": "本说明文档中标记为 [Reconstructed] 的内容系逆向工程推演复现，用于完整呈现创作演进逻辑与工艺可复现性。"
-        }
-
-        manifest_path = out_dir / "submission_manifest.json"
-        manifest_path.write_text(json.dumps(manifest_data, ensure_ascii=False, indent=2), encoding="utf-8")
-
-        # 5. Build DOCX via scripts/build_docx.py
-        docx_path = out_dir / "深林微光_新媒体节_AIGC说明书.docx"
-        build_docx.build_docx_from_manifest(str(manifest_path), str(docx_path))
-        
-        self.assertTrue(docx_path.exists())
-        self.assertGreater(docx_path.stat().st_size, 0)
-
-        # 6. Verify DOCX Image Embeddings (test_docx_embeds_generated_assets)
-        doc = docx.Document(str(docx_path))
-        # Check inline shapes (images embedded)
-        self.assertGreaterEqual(len(doc.inline_shapes), 3, "DOCX did not embed at least 3 generated images")
-        
-        # Check figure captions
-        doc_text = "\n".join([p.text for p in doc.paragraphs])
-        self.assertIn("图 1 阶段一空间透视与主体占位草图", doc_text)
-        self.assertIn("图 2 阶段二 AI 生成第一版初稿图像", doc_text)
-        self.assertIn("图 3 阶段三多轮提示词优化后的高清渲染成果", doc_text)
-
-        # 7. Zero Placeholder Assertion (test_no_dangling_placeholders)
-        found_placeholders = scan_placeholders.scan_directory(str(out_dir))
-        self.assertEqual(found_placeholders, [], f"Dangling placeholders found: {found_placeholders}")
+    def execute(self, request: dict, output_path: Path) -> dict:
+        self.requests.append(copy.deepcopy(request))
+        shutil.copyfile(self.snapshots[request["stage_id"]], output_path)
+        return {"provider_request_id": f"test-{request['stage_id']}", "test_only": True}
 
 
-if __name__ == "__main__":
-    unittest.main()
+def artwork(path: Path, accent: tuple[int, int, int] = (232, 168, 62), mode: str = "RGB", size=(320, 240)) -> Path:
+    image = Image.new("RGB", size, (18, 38, 68))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((20, 20, size[0] - 20, size[1] - 20), outline=(126, 220, 178), width=6)
+    draw.ellipse((size[0] // 3, size[1] // 4, 2 * size[0] // 3, 3 * size[1] // 4), fill=accent)
+    draw.polygon([(0, size[1]), (size[0] // 2, size[1] // 2), (size[0], size[1])], fill=(35, 105, 116))
+    if mode == "RGBA":
+        image = image.convert("RGBA")
+    elif mode == "L":
+        image = image.convert("L")
+    image.save(path)
+    return path
+
+
+def analysis(path: Path, *, max_iterations: int = 3) -> Path:
+    path.write_text(json.dumps({
+        "subject": "漂浮城市中的公共温室",
+        "composition": "横向三角构图，主体位于中心偏上",
+        "perspective": "低机位广角透视",
+        "environment": "云海与模块化城市平台",
+        "foreground": "近景植物叶片形成遮挡",
+        "middle_ground": "温室与人物活动区域",
+        "background_visual": "云层、远景平台与天空",
+        "palette": "深蓝、青绿与暖金色",
+        "lighting": "右上方暖色主光和冷色环境光",
+        "atmosphere": "清晨、开放、具有空气透视",
+        "visual_style": "完整的未来生态概念艺术",
+        "material": "玻璃、金属、植物和云雾",
+        "detail": "结构清晰，材质可辨，留有最终精修空间",
+        "theme": "未来生态共同体",
+        "max_iterations": max_iterations,
+        "convergence_threshold": 0.98,
+    }, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def make_plan(root: Path, final: Path, count: int) -> dict[str, Path]:
+    plan: dict[str, Path] = {}
+    colors = [(175, 42, 55), (80, 60, 185), (35, 155, 80), (215, 115, 35), (80, 190, 205)]
+    for version in range(1, count + 1):
+        snapshot = root / f"fixture-v{version}.png"
+        if version == count:
+            shutil.copyfile(final, snapshot)
+        else:
+            artwork(snapshot, accent=colors[version - 1])
+            with Image.open(snapshot) as image:
+                altered = Image.new("RGB", image.size, colors[version - 1])
+                altered.save(snapshot)
+        plan[f"generation_v{version}"] = snapshot
+    return plan
+
+
+def execute_pipeline(root: Path, count: int = 2, mode: str = "RGB") -> tuple[RecordingBackend, Path]:
+    root.mkdir(parents=True, exist_ok=True)
+    final = artwork(root / "输入作品.png", mode=mode)
+    backend = RecordingBackend(make_plan(root, final, count))
+    manifest = run_pipeline(str(final), str(root / "输出"), "浮城温室", "创意测试赛", str(analysis(root / "分析.json", max_iterations=4)), backend=backend, max_iterations=4)
+    return backend, manifest
+
+
+@pytest.fixture
+def workdir():
+    root = REPO_ROOT / ".test-work" / str(uuid.uuid4())
+    root.mkdir(parents=True)
+    try:
+        yield root
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.fixture(scope="module")
+def pipeline_output() -> tuple[RecordingBackend, Path]:
+    root = REPO_ROOT / ".test-work" / f"pipeline-{uuid.uuid4()}"
+    root.mkdir(parents=True)
+    result = execute_pipeline(root, 2)
+    yield result
+    shutil.rmtree(root, ignore_errors=True)
+
+
+def test_v1_is_real_execution_and_complete(pipeline_output) -> None:
+    backend, path = pipeline_output
+    manifest = validate_manifest_file(path)
+    record = manifest.generation_records[0]
+    assert record.status == "success"
+    assert record.output == versioned_asset("generation", 1)[1]
+    assert record.backend == backend.name != "opencv_filter"
+    assert record.complete_artwork is True
+    with Image.open(asset_path_map(manifest, path)[record.stage_id]) as image:
+        assert image.width >= 64 and image.height >= 64
+
+
+def test_prompt_v1_precedes_and_enters_request(pipeline_output) -> None:
+    backend, path = pipeline_output
+    manifest = validate_manifest_file(path)
+    record = manifest.generation_records[0]
+    request = json.loads(asset_path_map(manifest, path)[record.request_asset_id].read_text(encoding="utf-8"))
+    assert request["status"] == "requested"
+    assert request["prompt"] == record.prompt == backend.requests[0]["prompt"]
+    assert request["requested_at"] <= record.generated_at
+
+
+def test_difference_analysis_reads_actual_v1_and_final(pipeline_output) -> None:
+    _, path = pipeline_output
+    manifest = validate_manifest_file(path)
+    record = manifest.generation_records[0]
+    difference = json.loads(asset_path_map(manifest, path)[record.difference_analysis_asset_id].read_text(encoding="utf-8"))
+    assert difference["input_asset_ids"] == ["generation_v1", "final_artwork"]
+    assert difference["metrics"]["overall_convergence"] < 0.98
+    assert any(char.isdigit() for char in difference["composition"][0])
+
+
+def test_prompt_v2_has_traceable_evolution(pipeline_output) -> None:
+    _, path = pipeline_output
+    manifest = validate_manifest_file(path)
+    first, second = manifest.generation_records
+    evolution = manifest.prompt_record[1].evolution
+    assert second.prompt != first.prompt
+    assert evolution.keep and evolution.modify and evolution.reason
+    assert first.stage_id in second.input_assets
+    assert manifest.prompt_record[1].source_difference_asset_id == first.difference_analysis_asset_id
+    assert manifest.prompt_record[1].source_adjustment_reason_asset_id == first.adjustment_reason_asset_id
+    adjustment = json.loads(asset_path_map(manifest, path)[first.adjustment_reason_asset_id].read_text(encoding="utf-8"))
+    assert adjustment["source_difference_asset_id"] == first.difference_analysis_asset_id
+
+
+def test_v2_is_a_second_real_execution(pipeline_output) -> None:
+    backend, path = pipeline_output
+    manifest = validate_manifest_file(path)
+    assert len(backend.requests) == len(manifest.generation_records) == 2
+    assert backend.requests[1]["stage_id"] == "generation_v2"
+    assert manifest.generation_records[1].status == "success"
+    paths = asset_path_map(manifest, path)
+    with Image.open(paths["final_artwork"]) as final_image, Image.open(paths["generation_v1"]) as v1_image, Image.open(paths["generation_v2"]) as v2_image:
+        assert v1_image.size == v2_image.size == final_image.size
+    assert all(record.complete_artwork for record in manifest.generation_records)
+
+
+@pytest.mark.parametrize("count", [1, 2, 3])
+def test_dynamic_version_counts_and_stage_graph(workdir: Path, count: int) -> None:
+    _, path = execute_pipeline(workdir / f"case-{count}", count)
+    manifest = validate_manifest_file(path)
+    assert len(manifest.generation_records) == count
+    assert len([stage for stage in manifest.stage_graph if stage.kind == "generation"]) == count
+    assert len(manifest.stage_graph) == 2 * count + 2
+    assert manifest.stage_graph[-1].inputs[0].asset_id == f"generation_v{count}"
+
+
+def test_all_outputs_share_execution_record_source(pipeline_output) -> None:
+    _, path = pipeline_output
+    manifest = validate_manifest_file(path)
+    paths = asset_path_map(manifest, path)
+    doc = docx.Document(paths["statement_docx"])
+    doc_text = "\n".join([*(p.text for p in doc.paragraphs), *(cell.text for table in doc.tables for row in table.rows for cell in row.cells)])
+    for record in manifest.generation_records:
+        assert json.loads(paths[record.record_asset_id].read_text(encoding="utf-8")) == record.model_dump(mode="json")
+        assert record.prompt in paths["prompt_record"].read_text(encoding="utf-8")
+        assert record.backend in paths["parameter_record"].read_text(encoding="utf-8")
+        assert record.record_asset_id in json.dumps([stage.model_dump(mode="json") for stage in manifest.stage_graph], ensure_ascii=False)
+        assert record.prompt in doc_text and record.backend in doc_text
+
+
+def test_docx_media_matches_dynamic_schema_and_records(pipeline_output) -> None:
+    _, path = pipeline_output
+    manifest = validate_manifest_file(path)
+    paths = asset_path_map(manifest, path)
+    expected_ids = ["reconstructed_sketch", "reconstructed_lineart", "reconstructed_color_block", *[record.stage_id for record in manifest.generation_records], "final_artwork"]
+    document = docx.Document(paths["statement_docx"])
+    actual_ids = [shape._inline.docPr.get("descr") for shape in document.inline_shapes]
+    assert actual_ids == expected_ids
+    actual_hashes = []
+    for shape in document.inline_shapes:
+        rel_id = shape._inline.graphic.graphicData.pic.blipFill.blip.embed
+        actual_hashes.append(hashlib.sha256(document.part.related_parts[rel_id].blob).hexdigest())
+    assert actual_hashes == [sha256_file(paths[asset_id]) for asset_id in expected_ids]
+    assert set(docx_image_asset_ids(generation_versions=2)) == {"final_artwork", "reconstructed_sketch", "reconstructed_lineart", "reconstructed_color_block", "generation_v1", "generation_v2"}
+
+
+def test_no_generation_filters_remain() -> None:
+    source = (SCRIPTS / "reconstruct_assets.py").read_text(encoding="utf-8")
+    assert "visual_study" not in source
+    assert "addWeighted" not in source
+    assert "generate_visual" not in source
+
+
+def test_backend_unavailable_is_explicit(workdir: Path) -> None:
+    final = artwork(workdir / "final.png")
+    env = os.environ.copy()
+    for key in list(env):
+        if key.startswith("AIGC_IMAGE_GENERATION_"):
+            env.pop(key)
+    process = subprocess.run([sys.executable, str(SCRIPTS / "run_pipeline.py"), "--input", str(final), "--output-dir", str(workdir / "out"), "--title", "测试", "--competition", "测试赛", "--analysis-json", str(analysis(workdir / "analysis.json"))], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
+    assert process.returncode == 3
+    assert "generation_backend_unavailable" in process.stderr
+    assert not list((workdir / "out").glob("*_generation_v*.png"))
+
+
+@pytest.mark.parametrize("mutation", ["empty", "missing_field", "empty_graph", "duplicate_stage", "same_prompt", "bad_backend", "bad_evidence", "missing_image", "zero_image", "corrupt_image", "bad_hash", "absolute_path", "record_drift", "request_drift", "difference_drift"])
+def test_invalid_manifests_fail_nonzero(pipeline_output, workdir: Path, mutation: str) -> None:
+    _, source = pipeline_output
+    root = workdir / mutation
+    shutil.copytree(source.parent, root)
+    path = root / source.name
+    data = json.loads(path.read_text(encoding="utf-8"))
+    paths = {item["id"]: root / item["path"] for item in data["assets"]}
+    if mutation == "empty":
+        path.write_bytes(b"")
+    elif mutation == "missing_field":
+        data.pop("generation_records")
+    elif mutation == "empty_graph":
+        data["stage_graph"] = []
+    elif mutation == "duplicate_stage":
+        data["stage_graph"].append(copy.deepcopy(data["stage_graph"][0]))
+    elif mutation == "same_prompt":
+        data["generation_records"][1]["prompt"] = data["generation_records"][0]["prompt"]
+        data["prompt_record"][1]["prompt"] = data["generation_records"][0]["prompt"]
+    elif mutation == "bad_backend":
+        data["generation_records"][0]["backend"] = "opencv_filter"
+        data["parameter_record"][0]["backend"] = "opencv_filter"
+    elif mutation == "bad_evidence":
+        data["assets"][0]["evidence_level"] = "[Invented]"
+    elif mutation in {"missing_image", "zero_image", "corrupt_image", "bad_hash", "absolute_path"}:
+        asset = next(item for item in data["assets"] if item["id"] == "generation_v1")
+        image_path = paths["generation_v1"]
+        if mutation == "missing_image": image_path.unlink()
+        elif mutation == "zero_image": image_path.write_bytes(b"")
+        elif mutation == "corrupt_image":
+            image_path.write_bytes(b"broken")
+            asset.update(size_bytes=6, sha256=sha256_file(image_path))
+        elif mutation == "bad_hash": asset["sha256"] = "0" * 64
+        elif mutation == "absolute_path": asset["path"] = str(image_path.resolve())
+    elif mutation == "record_drift":
+        record_path = paths["generation_record_v1"]
+        record = json.loads(record_path.read_text(encoding="utf-8")); record["model"] = "tampered"; record_path.write_text(json.dumps(record), encoding="utf-8")
+        asset = next(item for item in data["assets"] if item["id"] == "generation_record_v1"); asset.update(size_bytes=record_path.stat().st_size, sha256=sha256_file(record_path))
+    elif mutation == "request_drift":
+        request_path = paths["generation_request_v1"]
+        request = json.loads(request_path.read_text(encoding="utf-8")); request["prompt"] = "tampered"; request_path.write_text(json.dumps(request), encoding="utf-8")
+        asset = next(item for item in data["assets"] if item["id"] == "generation_request_v1"); asset.update(size_bytes=request_path.stat().st_size, sha256=sha256_file(request_path))
+    elif mutation == "difference_drift":
+        diff_path = paths["difference_analysis_v1"]
+        diff = json.loads(diff_path.read_text(encoding="utf-8")); diff["input_asset_ids"] = ["generation_v1"]; diff_path.write_text(json.dumps(diff), encoding="utf-8")
+        asset = next(item for item in data["assets"] if item["id"] == "difference_analysis_v1"); asset.update(size_bytes=diff_path.stat().st_size, sha256=sha256_file(diff_path))
+    if mutation != "empty": path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    process = subprocess.run([sys.executable, str(SCRIPTS / "validate_manifest.py"), str(path)], capture_output=True, text=True, encoding="utf-8", errors="replace")
+    assert process.returncode != 0
+
+
+@pytest.mark.parametrize("mode", ["RGB", "RGBA", "L"])
+def test_unicode_path_and_image_modes(workdir: Path, mode: str) -> None:
+    source = artwork(workdir / f"中文 路径 {mode}.png", mode=mode)
+    result = reconstruct_all_assets(str(source), str(workdir / "输出 资产"))
+    assert set(result) == {"reconstructed_sketch", "reconstructed_lineart", "reconstructed_color_block"}
+    for value in result.values():
+        with Image.open(value) as image: image.verify()
+
+
+def test_oversized_input_fails(workdir: Path) -> None:
+    source = workdir / "huge.png"
+    Image.new("1", (8000, 7000)).save(source)
+    assert 8000 * 7000 > MAX_INPUT_PIXELS
+    with pytest.raises(ValueError, match="exceeds"):
+        reconstruct_all_assets(str(source), str(workdir / "out"))
+
+
+def test_real_temporary_install_includes_runtime(workdir: Path) -> None:
+    shell = shutil.which("pwsh") or shutil.which("powershell")
+    if os.name == "nt":
+        assert shell
+        command = [shell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(SCRIPTS / "install.ps1"), "-Platform", "codex", "-DestinationRoot", str(workdir), "-SkipFontInstall"]
+    else:
+        command = ["bash", str(SCRIPTS / "install.sh"), "codex", "--destination-root", str(workdir), "--skip-font-install"]
+    process = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    assert process.returncode == 0, process.stderr
+    installed = workdir / "aigc-competition-statement"
+    for relative in ("scripts/image_generation_backend.py", "scripts/analyze_generation_difference.py", "schema/canonical-assets.yaml", "requirements.txt"):
+        assert (installed / relative).is_file()
+
+
+def test_build_docx_rejects_missing_pre_generation_image(pipeline_output, workdir: Path) -> None:
+    _, source = pipeline_output
+    root = workdir / "missing-docx-image"
+    shutil.copytree(source.parent, root)
+    path = root / source.name
+    manifest = validate_manifest_file(path)
+    paths = asset_path_map(manifest, path)
+    paths["reconstructed_sketch"].unlink()
+    with pytest.raises(ManifestValidationError, match="does not exist"):
+        build_docx.build_docx_from_manifest(str(path), str(paths["statement_docx"]))
+
+
+def test_cli_files_have_git_executable_mode() -> None:
+    git = shutil.which("git")
+    assert git
+    cli_files = {
+        "scripts/analyze_generation_difference.py", "scripts/build_docx.py", "scripts/check_consistency.py",
+        "scripts/image_generation_backend.py", "scripts/install.sh", "scripts/reconstruct_assets.py",
+        "scripts/render_docx.py", "scripts/run_pipeline.py", "scripts/scan_placeholders.py",
+        "scripts/validate_manifest.py", "tests/fixture_generation_backend.py", "tests/run_e2e_verification.py",
+    }
+    process = subprocess.run([git, "ls-files", "-s", *sorted(cli_files)], cwd=REPO_ROOT, capture_output=True, text=True)
+    assert process.returncode == 0, process.stderr
+    modes = {line.split()[3]: line.split()[0] for line in process.stdout.splitlines()}
+    assert modes == {path: "100755" for path in cli_files}
+
+
+def test_schema_policy_and_repository_consistency() -> None:
+    assert load_canonical_schema()["manifest_version"] == "0.3.0"
+    assert generation_policy()["absolute_max_versions"] > generation_policy()["minimum_versions"]
+    assert check_consistency.check_version_sync() == []
+    assert check_consistency.check_canonical_schema() == []
+    assert check_consistency.check_no_utf8_bom() == []
+    assert check_consistency.check_font_bundle() == []
+
+
+def test_libreoffice_renders_every_page(pipeline_output, workdir: Path) -> None:
+    if find_soffice() is None:
+        if os.environ.get("REQUIRE_LIBREOFFICE") == "1": pytest.fail("LibreOffice is required but soffice was not found")
+        pytest.skip("LibreOffice not installed on this host")
+    _, path = pipeline_output
+    manifest = validate_manifest_file(path)
+    pages = render_docx(asset_path_map(manifest, path)["statement_docx"], workdir / "render")
+    audit_rendered_pages(pages)
+    assert pages

@@ -1,50 +1,40 @@
-﻿---
+---
 name: aigc-competition-statement
-description: 面向大广赛、新媒体创意节、学院奖等高校赛事的 AIGC 创作说明书 Agent Skill。用户仅需提供一张最终 AI 作品，即可自动逆向推演全流程，缺什么补什么、造齐全部缺失的过程材料（草图垫图、中间初稿、演进Prompt、参数表），输出无占位悬挂、结构完整且可直接提交的 AIGC 创作说明文案；同时也支持整理创作者已有真实材料。
+description: 为高校赛事整理可审计的 AIGC 完整作品版本演进，生成 Prompt、真实 generation execution records、动态 Stage Graph、Manifest 与 DOCX。适用于有原始过程证据，或从最终图启动明确标注的当前 Reconstruction 工作流；不会把前期素材、滤镜结果或复现材料冒充原始历史证据。
 ---
 
 # AIGC 竞赛创作说明书
 
-核心使命：**单图输入 → 逆向造齐全部历史材料 → 自动满足赛事材料要求**。
-用户只需提供一张最终 AI 生成作品，Skill 即可自主逆向推导合理管线，逐项补齐缺失的草图、线稿、阶段初稿、演进 Prompt 与参数配置，输出无悬挂占位、完整可直接提交的说明文档；同时也支持已有真实证据的整理归档。
+根据材料完整度选择 Evidence、Hybrid 或 Reconstruction Mode。真实材料优先；复现材料统一标记 `[Reconstructed]`，不能写成创作当时的历史记录。
 
-## 三工作模式与自动分流
+## 必须遵守
 
-```text
-用户提交作品
-↓
-检查现有创作材料
-↓
-├── 原始过程材料充分 (Prompt/垫图/参数/截图齐全)
-│   → 启动 Evidence Mode (真实证据直接归档，不生成替代品)
-│
-├── 材料部分缺失 (如仅有工具名或口述思路，缺少草图或Prompt)
-│   → 启动 Hybrid Mode (真实材料优先，仅对缺失环节重构补全)
-│
-└── 只有最终作品或过程材料严重缺失
-    → 启动 Reconstruction Mode (缺什么补什么，自动造齐全套材料)
-    → MUST READ skill/reconstruction.md
+- 权威资产定义只读取 [`schema/canonical-assets.yaml`](schema/canonical-assets.yaml)，不得在说明、脚本或模板中复制维护另一份资产清单。
+- Reconstruction Mode 必须阅读 [`skill/reconstruction.md`](skill/reconstruction.md)，并通过 `scripts/run_pipeline.py` 生成完整交付包。
+- sketch、lineart、color block 只属于前期视觉输入。`generation_v1/v2/...` 必须是同一幅完整作品的连续生成快照，不能代表人物、背景或其他局部。
+- 每轮必须先持久化 Prompt 和 Generation Request，再调用 `scripts/image_generation_backend.py` 的真实后端；OpenCV/Pillow 只允许生成前期输入。
+- 没有可用生成后端时返回 `generation_backend_unavailable`，交由宿主 Agent 接管；不得用 Final 的模糊、混合、调色或降质结果伪造版本。
+- 每轮实际结果必须经过 Difference Analysis 和 Adjustment Reason，下一 Prompt 由上一 Prompt 与真实诊断派生。轮次数由 `should_continue_iteration()` 动态决定并受 Schema 上限约束。
+- 版权、原创性与原始创作工具不能从像素确认。只有用户明确确认并记录来源时才写 `[User-reported]`；否则写“未核验”与 `[Unknown]`。
+- Manifest 必须通过 `scripts/validate_manifest.py`；缺字段、空 Stage Graph、断链或损坏图片均不得交付。
+
+## 运行
+
+```bash
+python scripts/run_pipeline.py \
+  --input final.png \
+  --output-dir output \
+  --title "作品名称" \
+  --competition "赛事名称" \
+  --analysis-json analysis.json
 ```
 
-## 证据等级与真实性自洽
+`analysis.json` 至少包含非空的 `subject`、`composition`、`palette` 和 `theme`。用户确认项使用 `confirmations` 记录 `confirmed`、`value` 与 `source`；省略时自动标为未核验。
 
-`[Verified]` > `[User-reported]` > `[Reconstructed]` > `[Unknown]`
+## 按需读取
 
-- `[Verified]`：文件、截图、草图原件、元数据直接证明，直接客观陈述。
-- `[User-reported]`：创作者口头表述，使用引述语气。
-- `[Reconstructed]`：基于最终作品逆向推演与实际复现生成，明确标为复现内容，绝不伪充历史事实。
-- `[Unknown]`：无法确认的信息如实标为“未记录”，严禁脑补虚假 Seed。
-
-## 关键执行路径与按需读取索引
-
-执行 Reconstruction Mode 时遵循标准流水线：
-`SKILL.md` → `skill/reconstruction.md` → `skill/image-generation.md` → `skill/workflow.md` → `skill/output-spec.md` → `templates/`
-
-- **权威资产清单与逆向重构规范**：[skill/reconstruction.md](skill/reconstruction.md)
-- **三级图像能力路由与生成算子**：[skill/image-generation.md](skill/image-generation.md)
-- **三模式驱动八阶段状态机**：[skill/workflow.md](skill/workflow.md)
-- **学术真实性底线与 IP 自查**：[skill/safety.md](skill/safety.md)
-- **Word 文档数据驱动装配标准**：[skill/output-spec.md](skill/output-spec.md)
-- **竞赛说明书标准主模板**：[templates/competition-statement.md](templates/competition-statement.md)
-- **阶段提示词演进归档记录表**：[templates/prompt-record.md](templates/prompt-record.md)
-- **提交流程材料构建自查清单**：[templates/evidence-checklist.md](templates/evidence-checklist.md)
+- 重构及 fallback 语义：[`skill/reconstruction.md`](skill/reconstruction.md)
+- 工作流与失败门禁：[`skill/workflow.md`](skill/workflow.md)
+- 真实性和版权边界：[`skill/safety.md`](skill/safety.md)
+- DOCX 装配规范：[`skill/output-spec.md`](skill/output-spec.md)
+- 模板：[`templates/competition-statement.md`](templates/competition-statement.md)、[`templates/prompt-record.md`](templates/prompt-record.md)、[`templates/evidence-checklist.md`](templates/evidence-checklist.md)

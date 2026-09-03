@@ -1,418 +1,315 @@
-﻿#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-build_docx.py - Executable assembly contract for AIGC competition statement DOCX.
+#!/usr/bin/env python3
+"""Build and structurally verify an A4 competition statement DOCX."""
 
-Takes submission_manifest.json, stage_graph.json, prompt_record.json, and visual assets,
-and compiles a publication-ready, academic-standard A4 Microsoft Word document (.docx).
-Guarantees:
-1. Dynamic Stage Graph rendering (data-driven stages 3.1, 3.2, ...);
-2. Real image embedding (PNG files embedded with academic captions);
-3. Summary tables and toolchain matrices generated from stage_graph;
-4. Metadata sanitization (clears author, company, last_modified_by);
-5. Post-generation integrity verification and zero-placeholder assertion.
-"""
+from __future__ import annotations
 
-import os
-import sys
-if sys.stdout:
-    try:
-        sys.stdout.reconfigure(encoding='utf-8')
-        sys.stderr.reconfigure(encoding='utf-8')
-    except Exception:
-        pass
-import json
 import argparse
+import hashlib
+import json
+import sys
 from pathlib import Path
+
 import docx
-from docx.shared import Inches, Pt, RGBColor
+from PIL import Image
+from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx.oxml import OxmlElement, parse_xml
-from docx.oxml.ns import nsdecls, qn
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.shared import Inches, Mm, Pt
+
+from canonical_schema import docx_image_asset_ids
+from manifest_schema import asset_path_map, validate_manifest_file
+
+FONT_NAME = "Noto Sans SC"
+TABLE_WIDTH_DXA = 9024
+
+for stream in (sys.stdout, sys.stderr):
+    if stream and hasattr(stream, "reconfigure"):
+        stream.reconfigure(encoding="utf-8", errors="replace")
 
 
-def set_cell_background(cell, fill_hex: str):
-    """Set background color of a table cell."""
-    tcPr = cell._tc.get_or_add_tcPr()
-    shd = parse_xml(f'<w:shd {nsdecls("w")} w:fill="{fill_hex}"/>')
-    tcPr.append(shd)
+def _set_run_font(run, size: float = 10.5, bold: bool = False) -> None:
+    run.font.name = FONT_NAME
+    run.font.size = Pt(size)
+    run.bold = bold
+    fonts = run._element.get_or_add_rPr().get_or_add_rFonts()
+    for key in ("ascii", "hAnsi", "eastAsia"):
+        fonts.set(qn(f"w:{key}"), FONT_NAME)
 
 
-def set_cell_margins(cell, top=120, bottom=120, left=150, right=150):
-    """Set padding in twips (1/20 of a pt)."""
-    tcPr = cell._tc.get_or_add_tcPr()
-    tcMar = parse_xml(
-        f'<w:tcMar {nsdecls("w")}>'
-        f'<w:top w:w="{top}" w:type="dxa"/>'
-        f'<w:left w:w="{left}" w:type="dxa"/>'
-        f'<w:bottom w:w="{bottom}" w:type="dxa"/>'
-        f'<w:right w:w="{right}" w:type="dxa"/>'
-        f'</w:tcMar>'
-    )
-    tcPr.append(tcMar)
+def _keep(paragraph, *, next_paragraph: bool = False, lines: bool = True) -> None:
+    properties = paragraph._p.get_or_add_pPr()
+    if next_paragraph:
+        properties.append(OxmlElement("w:keepNext"))
+    if lines:
+        properties.append(OxmlElement("w:keepLines"))
 
 
-def add_custom_heading(doc, text: str, level: int):
-    """Add styled Chinese heading with proper spacing."""
-    p = doc.add_paragraph()
-    run = p.add_run(text)
-    run.font.name = "SimHei"  # 黑体
-    run._element.rPr.rFonts.set(qn("w:eastAsia"), "SimHei")
-    run.bold = True
-    
-    if level == 1:
-        run.font.size = Pt(15)  # 小三号
-        p.paragraph_format.space_before = Pt(12)
-        p.paragraph_format.space_after = Pt(6)
-    elif level == 2:
-        run.font.size = Pt(13)  # 四号
-        p.paragraph_format.space_before = Pt(8)
-        p.paragraph_format.space_after = Pt(4)
-    elif level == 3:
-        run.font.size = Pt(11)  # 小四号
-        p.paragraph_format.space_before = Pt(6)
-        p.paragraph_format.space_after = Pt(2)
-    return p
+def _add_heading(document, text: str, level: int) -> None:
+    paragraph = document.add_paragraph(style=f"Heading {level}")
+    paragraph.add_run(text)
+    _keep(paragraph, next_paragraph=True)
 
 
-def add_body_paragraph(doc, text: str, bold_prefix: str = None, indent: bool = True):
-    """Add standard body paragraph in SimSun."""
-    p = doc.add_paragraph()
-    p.paragraph_format.line_spacing = 1.35
-    p.paragraph_format.space_after = Pt(4)
-    if indent:
-        p.paragraph_format.first_line_indent = Pt(21)  # 2 characters indent
-    
-    if bold_prefix:
-        r_pre = p.add_run(bold_prefix)
-        r_pre.font.name = "SimHei"
-        r_pre._element.rPr.rFonts.set(qn("w:eastAsia"), "SimHei")
-        r_pre.bold = True
-        r_pre.font.size = Pt(10.5)  # 五号
-        
-    run = p.add_run(text)
-    run.font.name = "SimSun"
-    run._element.rPr.rFonts.set(qn("w:eastAsia"), "SimSun")
-    run.font.size = Pt(10.5)
-    return p
+def _add_body(document, text: str, *, label: str | None = None) -> None:
+    paragraph = document.add_paragraph()
+    paragraph.paragraph_format.space_after = Pt(5)
+    paragraph.paragraph_format.line_spacing = 1.25
+    if label:
+        _set_run_font(paragraph.add_run(label), bold=True)
+    _set_run_font(paragraph.add_run(text))
 
 
-def add_caption(doc, text: str):
-    """Add centered academic figure caption in KaiTi."""
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p.paragraph_format.space_before = Pt(4)
-    p.paragraph_format.space_after = Pt(10)
-    run = p.add_run(text)
-    run.font.name = "KaiTi"
-    run._element.rPr.rFonts.set(qn("w:eastAsia"), "KaiTi")
-    run.font.size = Pt(9)  # 小五号
-    run.font.color.rgb = RGBColor(80, 80, 80)
-    return p
+def _set_cell_margins(cell, top: int = 80, bottom: int = 80, start: int = 120, end: int = 120) -> None:
+    properties = cell._tc.get_or_add_tcPr()
+    margins = properties.first_child_found_in("w:tcMar")
+    if margins is None:
+        margins = OxmlElement("w:tcMar")
+        properties.append(margins)
+    for name, value in (("top", top), ("bottom", bottom), ("start", start), ("end", end)):
+        node = margins.find(qn(f"w:{name}"))
+        if node is None:
+            node = OxmlElement(f"w:{name}")
+            margins.append(node)
+        node.set(qn("w:w"), str(value))
+        node.set(qn("w:type"), "dxa")
+
+
+def _set_table_geometry(table, widths: list[int]) -> None:
+    if sum(widths) != TABLE_WIDTH_DXA:
+        raise ValueError(f"Table widths must total {TABLE_WIDTH_DXA} DXA: {widths}")
+    table.autofit = False
+    table.alignment = WD_TABLE_ALIGNMENT.LEFT
+    properties = table._tbl.tblPr
+    width = properties.first_child_found_in("w:tblW")
+    width.set(qn("w:type"), "dxa")
+    width.set(qn("w:w"), str(TABLE_WIDTH_DXA))
+    indent = properties.first_child_found_in("w:tblInd")
+    if indent is None:
+        indent = OxmlElement("w:tblInd")
+        properties.append(indent)
+    indent.set(qn("w:type"), "dxa")
+    indent.set(qn("w:w"), "0")
+    layout = properties.first_child_found_in("w:tblLayout")
+    if layout is None:
+        layout = OxmlElement("w:tblLayout")
+        properties.append(layout)
+    layout.set(qn("w:type"), "fixed")
+    grid = table._tbl.tblGrid
+    for child in list(grid):
+        grid.remove(child)
+    for value in widths:
+        col = OxmlElement("w:gridCol")
+        col.set(qn("w:w"), str(value))
+        grid.append(col)
+    for row in table.rows:
+        for cell, value in zip(row.cells, widths):
+            cell.width = Inches(value / 1440)
+            cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+            _set_cell_margins(cell)
+            tc_width = cell._tc.get_or_add_tcPr().get_or_add_tcW()
+            tc_width.set(qn("w:type"), "dxa")
+            tc_width.set(qn("w:w"), str(value))
+
+
+def _fill_table(table, rows: list[list[str]], widths: list[int]) -> None:
+    for row_values in rows:
+        cells = table.add_row().cells
+        for cell, value in zip(cells, row_values):
+            cell.text = value
+            for paragraph in cell.paragraphs:
+                paragraph.paragraph_format.space_after = Pt(0)
+                paragraph.paragraph_format.line_spacing = 1.1
+                for run in paragraph.runs:
+                    _set_run_font(run, size=8.5)
+    _set_table_geometry(table, widths)
+    for cell in table.rows[0].cells:
+        for run in cell.paragraphs[0].runs:
+            _set_run_font(run, size=9, bold=True)
+
+
+def _add_image_with_caption(document, image_path: Path, caption: str, asset_id: str) -> None:
+    with Image.open(image_path) as image:
+        width_px, height_px = image.size
+    max_width, max_height = 5.75, 6.65
+    ratio = min(max_width / width_px, max_height / height_px)
+    width, height = width_px * ratio, height_px * ratio
+    image_paragraph = document.add_paragraph()
+    image_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    image_paragraph.paragraph_format.space_before = Pt(6)
+    image_paragraph.paragraph_format.space_after = Pt(2)
+    _keep(image_paragraph, next_paragraph=True)
+    shape = image_paragraph.add_run().add_picture(str(image_path), width=Inches(width), height=Inches(height))
+    shape._inline.docPr.set("descr", asset_id)
+    caption_paragraph = document.add_paragraph()
+    caption_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    caption_paragraph.paragraph_format.space_after = Pt(8)
+    _keep(caption_paragraph)
+    _set_run_font(caption_paragraph.add_run(caption), size=9)
+
+
+def _configure_document(document) -> None:
+    section = document.sections[0]
+    section.page_width = Mm(210)
+    section.page_height = Mm(297)
+    section.top_margin = Mm(20)
+    section.bottom_margin = Mm(20)
+    section.left_margin = Mm(25)
+    section.right_margin = Mm(25)
+    styles = document.styles
+    normal = styles["Normal"]
+    normal.font.name = FONT_NAME
+    normal.font.size = Pt(10.5)
+    normal._element.rPr.rFonts.set(qn("w:ascii"), FONT_NAME)
+    normal._element.rPr.rFonts.set(qn("w:hAnsi"), FONT_NAME)
+    normal._element.rPr.rFonts.set(qn("w:eastAsia"), FONT_NAME)
+    for level, size in ((1, 15), (2, 13), (3, 11)):
+        style = styles[f"Heading {level}"]
+        style.font.name = FONT_NAME
+        style.font.size = Pt(size)
+        style.font.bold = True
+        style._element.rPr.rFonts.set(qn("w:eastAsia"), FONT_NAME)
+        style.paragraph_format.space_before = Pt(12 if level == 1 else 8)
+        style.paragraph_format.space_after = Pt(6 if level == 1 else 4)
+
+
+def _verify_docx(docx_path: Path, image_assets: list[tuple[str, Path]], version_count: int) -> None:
+    result = docx.Document(docx_path)
+    if len(result.inline_shapes) != len(image_assets):
+        raise AssertionError(f"DOCX image count mismatch: expected {len(image_assets)}, got {len(result.inline_shapes)}")
+    embedded = []
+    for shape in result.inline_shapes:
+        asset_id = shape._inline.docPr.get("descr")
+        relationship_id = shape._inline.graphic.graphicData.pic.blipFill.blip.embed
+        blob = result.part.related_parts[relationship_id].blob
+        embedded.append((asset_id, hashlib.sha256(blob).hexdigest()))
+    expected = [(asset_id, hashlib.sha256(path.read_bytes()).hexdigest()) for asset_id, path in image_assets]
+    if embedded != expected:
+        raise AssertionError("DOCX drawings do not correspond one-for-one with canonical image assets")
+    text = "\n".join(paragraph.text for paragraph in result.paragraphs)
+    required_text = ["实际工具", "版权状态", "完整作品连续版本", *[f"Prompt V{number}" for number in range(1, version_count + 1)], *[f"Generation V{number}" for number in range(1, version_count + 1)]]
+    missing = [token for token in required_text if token not in text and not any(token in cell.text for table in result.tables for row in table.rows for cell in row.cells)]
+    if missing:
+        raise AssertionError(f"DOCX did not render required records: {missing}")
+    forbidden = ["{作品名称}", "{赛事名称}", "待补齐", "待插入", "TODO", "TBD", "PLACEHOLDER"]
+    leaked = [token for token in forbidden if token in text]
+    if leaked:
+        raise AssertionError(f"DOCX contains placeholders: {leaked}")
 
 
 def build_docx_from_manifest(manifest_path: str, output_docx_path: str) -> str:
-    """Builds the complete docx according to canonical stage graph and manifest."""
-    manifest_file = Path(manifest_path).resolve()
-    base_dir = manifest_file.parent
-    
-    with open(manifest_file, "r", encoding="utf-8") as f:
-        manifest = json.load(f)
-        
-    artwork_info = manifest.get("artwork", {})
-    title = artwork_info.get("title", "未命名作品")
-    competition = artwork_info.get("competition", "高校创意竞赛")
-    work_type = artwork_info.get("type", "数字图像/概念插画")
-    theme = artwork_info.get("theme", "AIGC 视觉创作")
-    pipeline = artwork_info.get("pipeline", "动态 AIGC 演进管线")
-    tool_env = artwork_info.get("tool_environment", "原始创作工具：未记录（基于特征推断） / 本次复现工具：宿主生图能力")
-    rationale = manifest.get("creative_rationale", {})
-    stage_graph = manifest.get("stage_graph", [])
-    prompt_record = manifest.get("prompt_record", [])
-    disclaimer = manifest.get("disclaimer", "")
+    manifest = validate_manifest_file(manifest_path, allow_missing_asset_ids={"statement_docx"})
+    paths = asset_path_map(manifest, manifest_path)
+    output = Path(output_docx_path).resolve()
+    if output != paths["statement_docx"]:
+        raise ValueError(f"Output path must match statement_docx manifest asset: {paths['statement_docx']}")
+    image_ids = docx_image_asset_ids(generation_versions=len(manifest.generation_records))
+    missing = [asset_id for asset_id in image_ids if not paths[asset_id].is_file()]
+    if missing:
+        raise FileNotFoundError(f"Canonical images missing: {missing}")
 
-    doc = docx.Document()
-    
-    # Set standard A4 page margins (top/bottom 2.54cm, left/right 3.18cm)
-    for section in doc.sections:
-        section.top_margin = Inches(1.0)
-        section.bottom_margin = Inches(1.0)
-        section.left_margin = Inches(1.25)
-        section.right_margin = Inches(1.25)
-        
-    # Main Title
-    title_p = doc.add_paragraph()
-    title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    title_p.paragraph_format.space_before = Pt(18)
-    title_p.paragraph_format.space_after = Pt(18)
-    t_run = title_p.add_run(f"【{title}】AIGC 创作过程说明书")
-    t_run.font.name = "SimHei"
-    t_run._element.rPr.rFonts.set(qn("w:eastAsia"), "SimHei")
-    t_run.font.size = Pt(18)  # 小二号
-    t_run.bold = True
-    
-    # -------------------------------------------------------------
-    # 一、作品基本信息
-    # -------------------------------------------------------------
-    add_custom_heading(doc, "一、作品基本信息", level=1)
-    add_body_paragraph(doc, f"：{title}", bold_prefix="作品名称", indent=False)
-    add_body_paragraph(doc, f"：{competition}", bold_prefix="参赛赛事", indent=False)
-    add_body_paragraph(doc, f"：{work_type}", bold_prefix="作品类型", indent=False)
-    add_body_paragraph(doc, f"：{theme}", bold_prefix="创作主题", indent=False)
-    add_body_paragraph(doc, f"：{pipeline}", bold_prefix="AIGC 核心技术路径", indent=False)
-    add_body_paragraph(doc, f"：{tool_env}", bold_prefix="工具环境说明", indent=False)
-    
-    # -------------------------------------------------------------
-    # 二、创作构思与立意
-    # -------------------------------------------------------------
-    add_custom_heading(doc, "二、创作构思与立意", level=1)
-    add_custom_heading(doc, "1. 创作背景与选题动机", level=2)
-    add_body_paragraph(doc, rationale.get("background", "本作品响应大赛主题要求，融合数字艺术与设计美学进行深度视觉探索。"))
-    
-    add_custom_heading(doc, "2. 视觉设计思路与设计目标", level=2)
-    add_body_paragraph(doc, rationale.get("visual_concept", "通过严谨的构图规划与色彩冷暖层次对撞，展现极具张力的视觉感染力。"))
-    
-    add_custom_heading(doc, "3. AIGC 工具协同目的", level=2)
-    add_body_paragraph(doc, rationale.get("ai_collaboration", "借助生成式 AI 高效计算复杂环境光照漫反射与微晶材质，实现想象力与写实细节的有机协同。"))
-    
-    # -------------------------------------------------------------
-    # 三、阶段性创作过程 (Dynamic Stage Graph)
-    # -------------------------------------------------------------
-    add_custom_heading(doc, "三、阶段性创作过程", level=1)
-    p_intro = add_body_paragraph(
-        doc,
-        "本章节基于动态阶段管线（Dynamic Stage Graph），完整呈现“输入素材 → 生成工具 → 提示词 → 参数配置 → 阶段结果 → 调整优化”的自洽闭环证据链。",
-        indent=False
-    )
-    p_intro.paragraph_format.space_after = Pt(8)
-    
-    figure_counter = 1
-    for idx, stage in enumerate(stage_graph, start=1):
-        stage_title = stage.get("title", f"阶段{idx}")
-        add_custom_heading(doc, f"3.{idx} {stage_title}", level=2)
-        
-        purpose = stage.get("purpose", "")
-        if purpose:
-            add_body_paragraph(doc, f"：{purpose}", bold_prefix="创作目的", indent=False)
-            
-        inputs = stage.get("inputs", [])
-        if inputs:
-            input_desc = "、".join([inp.get("name", str(inp)) for inp in inputs])
-            add_body_paragraph(doc, f"：{input_desc}", bold_prefix="输入素材", indent=False)
-            
-        tool = stage.get("tool", "")
-        if tool:
-            add_body_paragraph(doc, f"：{tool}", bold_prefix="使用工具", indent=False)
-            
-        prompt = stage.get("prompt", "")
-        if prompt:
-            add_body_paragraph(doc, f"：{prompt}", bold_prefix="提示词配置", indent=False)
-            
-        params = stage.get("parameters", "")
-        if params:
-            add_body_paragraph(doc, f"：{params}", bold_prefix="配置参数", indent=False)
-            
-        # Embedded Outputs / Images
-        outputs = stage.get("outputs", [])
-        for out in outputs:
-            img_filename = out.get("filename", "")
-            img_caption = out.get("caption", f"阶段{idx}成果")
-            evidence_level = out.get("evidence_level", "[Reconstructed]")
-            
-            # Resolve image path
-            img_path = base_dir / img_filename
-            if not img_path.exists() and "path" in out:
-                img_path = Path(out["path"])
-                
-            if img_path.exists() and img_path.is_file() and img_path.suffix.lower() in [".png", ".jpg", ".jpeg"]:
-                img_p = doc.add_paragraph()
-                img_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                img_p.paragraph_format.space_before = Pt(8)
-                img_p.paragraph_format.space_after = Pt(2)
-                run_img = img_p.add_run()
-                run_img.add_picture(str(img_path), width=Inches(5.5))
-                
-                # Caption
-                full_caption = f"图 {figure_counter} {img_caption} ({evidence_level})"
-                add_caption(doc, full_caption)
-                figure_counter += 1
-                
-        adjustment = stage.get("adjustment", "")
-        if adjustment:
-            add_body_paragraph(doc, f"：{adjustment}", bold_prefix="调整说明与优化方向", indent=False)
-            
-        evidence_tag = stage.get("evidence_level", "[Reconstructed]")
-        add_body_paragraph(doc, f"：{evidence_tag}", bold_prefix="证据等级", indent=False)
-        
-    # -------------------------------------------------------------
-    # 四、AIGC 工具使用说明与人机协同分工
-    # -------------------------------------------------------------
-    add_custom_heading(doc, "四、AIGC 工具使用说明与人机协同分工", level=1)
-    add_custom_heading(doc, "1. 核心工具链矩阵", level=2)
-    
-    # Table of tools
-    tool_table = doc.add_table(rows=1, cols=4)
-    tool_table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    tool_table.autofit = True
-    hdr_cells = tool_table.rows[0].cells
-    hdr_titles = ["制作阶段", "采用工具", "工具属性", "具体作用"]
-    for i, title_text in enumerate(hdr_titles):
-        hdr_cells[i].text = title_text
-        set_cell_background(hdr_cells[i], "F2F2F2")
-        set_cell_margins(hdr_cells[i])
-        for r in hdr_cells[i].paragraphs[0].runs:
-            r.font.name = "SimHei"
-            r.bold = True
-            r.font.size = Pt(9.5)
-            
-    for stage in stage_graph:
-        row_cells = tool_table.add_row().cells
-        row_cells[0].text = stage.get("title", "")
-        row_cells[1].text = stage.get("tool", "")
-        row_cells[2].text = stage.get("tool_type", "生成式 AI / 设计工具")
-        row_cells[3].text = stage.get("purpose", "")
-        for c in row_cells:
-            set_cell_margins(c)
-            for r in c.paragraphs[0].runs:
-                r.font.name = "SimSun"
-                r.font.size = Pt(9.5)
-                
-    add_custom_heading(doc, "2. 人机协同职责划分", level=2)
-    add_body_paragraph(
-        doc,
-        "提出作品核心主旨与立意隐喻；规划画面骨骼、空间透视与构图引导；编写并迭代提示词策略；严格把控最终画面的审美与艺术标准。",
-        bold_prefix="人类创作者主导环节："
-    )
-    add_body_paragraph(
-        doc,
-        "高效执行物理光线漫反射与环境气氛渲染；具象化呈现微晶与细腻材质；协助完成初稿到深化稿的高精渲染迭代。",
-        bold_prefix="AI 工具协同辅助环节："
-    )
-    
-    # -------------------------------------------------------------
-    # 五、全流程 Prompt、输入素材与参数汇总表
-    # -------------------------------------------------------------
-    add_custom_heading(doc, "五、全流程 Prompt、输入素材与参数汇总表", level=1)
-    summary_table = doc.add_table(rows=1, cols=5)
-    summary_table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    s_headers = ["创作阶段", "输入素材 (Input)", "采用工具 (Tool)", "提示词 (Prompt)", "参数与产出 (Output)"]
-    for i, h_text in enumerate(s_headers):
-        summary_table.rows[0].cells[i].text = h_text
-        set_cell_background(summary_table.rows[0].cells[i], "F2F2F2")
-        set_cell_margins(summary_table.rows[0].cells[i])
-        for r in summary_table.rows[0].cells[i].paragraphs[0].runs:
-            r.font.name = "SimHei"
-            r.bold = True
-            r.font.size = Pt(9.0)
-            
-    for stage in stage_graph:
-        row = summary_table.add_row().cells
-        row[0].text = stage.get("title", "")
-        inputs = stage.get("inputs", [])
-        row[1].text = "、".join([i.get("name", str(i)) for i in inputs]) if inputs else "初始输入"
-        row[2].text = stage.get("tool", "")
-        row[3].text = stage.get("prompt", "")
-        out_names = "、".join([o.get("caption", o.get("filename", "")) for o in stage.get("outputs", [])])
-        param_str = stage.get("parameters", "")
-        row[4].text = f"{param_str}\n产出：{out_names}" if param_str else f"产出：{out_names}"
-        for c in row:
-            set_cell_margins(c)
-            for r in c.paragraphs[0].runs:
-                r.font.name = "SimSun"
-                r.font.size = Pt(8.5)
-                
-    # -------------------------------------------------------------
-    # 六、版权、素材来源与原创性说明
-    # -------------------------------------------------------------
-    add_custom_heading(doc, "六、版权、素材来源与原创性说明", level=1)
-    add_body_paragraph(
-        doc,
-        "本作品由创作者自主完成构思、构图规划与提示词设计，作品内容积极向上，不含任何违法违规信息，无知识产权争议与权属纠纷。",
-        bold_prefix="1. 作品原创性承诺："
-    )
-    add_body_paragraph(
-        doc,
-        "创作全流程中使用的草图构想系创作者自主原创规划，未引入未经授权的第三方商用摄影图或专属素材。",
-        bold_prefix="2. 输入素材来源陈述："
-    )
-    add_body_paragraph(
-        doc,
-        "画面中未出现未经授权的第三方商业 Logo、商标或受保护影视动漫专属形象，字体与美术要素符合赛事合规要求。",
-        bold_prefix="3. 知识产权自查结论："
-    )
-    
-    # -------------------------------------------------------------
-    # 七、复现材料特别说明
-    # -------------------------------------------------------------
-    add_custom_heading(doc, "七、复现材料特别说明", level=1)
-    if not disclaimer:
-        disclaimer = (
-            "本说明文档中标记为 [Reconstructed] 的草图构图、阶段演进过程图、提示词演进及推荐配置参数，"
-            "系因创作者创作过程中部分原始中间过程文件未作完整留存，由 AI 辅助分析系统根据最终作品的视觉与工程特征"
-            "进行逆向工程分析和复现构建。其核心目的在于完整展示作品的技术路线、构思演进逻辑与工艺可复现性，"
-            "并不代表创作当时保存的原始物理历史记录。"
-        )
-    p_disc = doc.add_paragraph()
-    p_disc.paragraph_format.line_spacing = 1.35
-    p_disc.paragraph_format.first_line_indent = Pt(21)
-    p_disc.paragraph_format.space_before = Pt(6)
-    p_disc.paragraph_format.space_after = Pt(12)
-    r_disc = p_disc.add_run(disclaimer)
-    r_disc.font.name = "KaiTi"
-    r_disc._element.rPr.rFonts.set(qn("w:eastAsia"), "KaiTi")
-    r_disc.font.size = Pt(10)
-    
-    # -------------------------------------------------------------
-    # Metadata Sanitization
-    # -------------------------------------------------------------
-    doc.core_properties.author = ""
-    doc.core_properties.last_modified_by = ""
-    doc.core_properties.comments = ""
-    doc.core_properties.category = ""
-    
-    out_file = Path(output_docx_path).resolve()
-    out_file.parent.mkdir(parents=True, exist_ok=True)
-    doc.save(str(out_file))
-    
-    # -------------------------------------------------------------
-    # Basic Integrity Verification
-    # -------------------------------------------------------------
-    assert out_file.exists(), f"DOCX file failed to save: {out_file}"
-    assert out_file.stat().st_size > 0, f"DOCX file is empty: {out_file}"
-    
-    verify_doc = docx.Document(str(out_file))
-    assert len(verify_doc.paragraphs) > 10, "DOCX has too few paragraphs"
-    assert len(verify_doc.tables) >= 2, "DOCX is missing required tables"
-    
-    # Placeholder Scan on XML text
-    full_text = []
-    for p in verify_doc.paragraphs:
-        full_text.append(p.text)
-    for t in verify_doc.tables:
-        for row in t.rows:
-            for cell in row.cells:
-                full_text.append(cell.text)
-    combined = "\n".join(full_text)
-    
-    forbidden_tokens = ["{作品名称}", "{赛事名称}", "{提示词内容}", "待补齐", "待确认", "待插入", "TODO", "TBD", "PLACEHOLDER"]
-    found = [tok for tok in forbidden_tokens if tok in combined]
-    if found:
-        raise AssertionError(f"Leaked placeholders detected in built DOCX: {found}")
-        
-    return str(out_file)
+    document = docx.Document()
+    _configure_document(document)
+    title = document.add_paragraph()
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    title.paragraph_format.space_after = Pt(14)
+    _keep(title, next_paragraph=True)
+    _set_run_font(title.add_run(f"【{manifest.artwork.title}】AIGC 创作过程说明书"), size=18, bold=True)
+
+    _add_heading(document, "一、作品基本信息", 1)
+    for label, value in (
+        ("作品名称：", manifest.artwork.title), ("参赛赛事：", manifest.artwork.competition),
+        ("作品类型：", manifest.artwork.type), ("创作主题：", manifest.artwork.theme),
+        ("技术路径：", manifest.artwork.pipeline),
+    ):
+        _add_body(document, value, label=label)
+
+    _add_heading(document, "二、创作构思与立意", 1)
+    _add_body(document, manifest.creative_rationale.background, label="创作背景：")
+    _add_body(document, manifest.creative_rationale.visual_concept, label="视觉构思：")
+    _add_body(document, manifest.creative_rationale.ai_collaboration, label="工具协同：")
+
+    _add_heading(document, "三、Dynamic Stage Graph", 1)
+    for index, stage in enumerate(manifest.stage_graph, start=1):
+        _add_heading(document, f"3.{index} {stage.title}", 2)
+        _add_body(document, stage.purpose, label="目的：")
+        if stage.source_record_asset_id:
+            _add_body(document, stage.source_record_asset_id, label="事实来源：")
+
+    _add_heading(document, "四、前期视觉设计 / 输入素材", 1)
+    caption_by_id = {
+        output_item.asset_id: output_item.label
+        for stage in manifest.stage_graph
+        for output_item in stage.outputs
+    }
+    caption_by_id["final_artwork"] = "最终作品（用户提供文件）"
+    preliminary_ids = [asset_id for asset_id in image_ids if asset_id.startswith("reconstructed_")]
+    figure_number = 1
+    for asset_id in preliminary_ids:
+        evidence = next(asset.evidence_level for asset in manifest.assets if asset.id == asset_id)
+        _add_image_with_caption(document, paths[asset_id], f"图 {figure_number} {caption_by_id.get(asset_id, asset_id)} {evidence}（非 Generation Version）", asset_id)
+        figure_number += 1
+
+    _add_heading(document, "五、AIGC 完整作品连续版本", 1)
+    _add_body(document, "Generation V1/V2/V3…均为同一幅作品的完整画面快照，不是人物、背景或局部资产。")
+    for index, (record, prompt_item, parameter_item) in enumerate(zip(manifest.generation_records, manifest.prompt_record, manifest.parameter_record), start=1):
+        _add_heading(document, f"5.{index} Generation V{index}", 2)
+        _add_body(document, "、".join(record.input_assets), label="输入素材：")
+        _add_body(document, record.prompt, label=f"Prompt V{index}：")
+        if prompt_item.source_difference_asset_id:
+            _add_body(document, f"{prompt_item.source_difference_asset_id} + {prompt_item.source_adjustment_reason_asset_id}", label="Prompt Evolution 来源：")
+        _add_body(document, record.backend, label="实际工具：")
+        _add_body(document, record.model, label="实际模型：")
+        parameter_table = document.add_table(rows=1, cols=2)
+        parameter_table.rows[0].cells[0].text = "实际参数"
+        parameter_table.rows[0].cells[1].text = "值"
+        _fill_table(parameter_table, [[key, str(value)] for key, value in parameter_item.parameters.items()], [1872, 7152])
+        _add_body(document, "；".join(prompt_item.evolution.keep) or "首轮建立方向", label="KEEP：")
+        _add_body(document, "；".join(prompt_item.evolution.modify) or "首轮建立方向", label="MODIFY：")
+        _add_body(document, "；".join(prompt_item.evolution.add) or "无", label="ADD：")
+        _add_body(document, "；".join(prompt_item.evolution.reduce) or "无", label="REDUCE：")
+        difference = json.loads(paths[record.difference_analysis_asset_id].read_text(encoding="utf-8"))
+        adjustment = json.loads(paths[record.adjustment_reason_asset_id].read_text(encoding="utf-8"))
+        _add_body(document, "；".join(difference["priority_adjustments"]), label=f"V{index} 实际问题：")
+        _add_body(document, "；".join(item["adjustment"] for item in adjustment["items"]), label="修改原因与动作：")
+        evidence = next(asset.evidence_level for asset in manifest.assets if asset.id == record.stage_id)
+        _add_image_with_caption(document, paths[record.stage_id], f"图 {figure_number} Generation V{index}：同一作品完整版本 {evidence}", record.stage_id)
+        figure_number += 1
+
+    _add_heading(document, "六、Final Artwork", 1)
+    _add_body(document, "Final 与最后一个 Generation Version 保持主体、构图与风格继承关系，承担最后精修或真实后期处理。")
+    final_evidence = next(asset.evidence_level for asset in manifest.assets if asset.id == "final_artwork")
+    _add_image_with_caption(document, paths["final_artwork"], f"图 {figure_number} Final Artwork {final_evidence}", "final_artwork")
+
+    _add_heading(document, "七、版权、原创性与原始工具状态", 1)
+    for label, claim in (
+        ("版权状态：", manifest.provenance.copyright), ("原创性状态：", manifest.provenance.originality),
+        ("原始工具状态：", manifest.provenance.original_tool),
+    ):
+        source = f"；确认来源：{claim.confirmation_source}" if claim.confirmation_source else ""
+        _add_body(document, f"{claim.value} {claim.evidence_level}{source}", label=label)
+    _add_body(document, manifest.disclaimer)
+
+    document.core_properties.author = ""
+    document.core_properties.last_modified_by = ""
+    output.parent.mkdir(parents=True, exist_ok=True)
+    document.save(output)
+    if not output.is_file() or output.stat().st_size == 0:
+        raise AssertionError(f"DOCX was not created: {output}")
+    expected_order = [*preliminary_ids, *[record.stage_id for record in manifest.generation_records], "final_artwork"]
+    _verify_docx(output, [(asset_id, paths[asset_id]) for asset_id in expected_order], len(manifest.generation_records))
+    return str(output)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Build AIGC competition statement DOCX from manifest.")
-    parser.add_argument("--manifest", "-m", required=True, help="Path to submission_manifest.json")
-    parser.add_argument("--output", "-o", required=True, help="Output DOCX file path")
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Build AIGC competition statement DOCX")
+    parser.add_argument("--manifest", "-m", required=True)
+    parser.add_argument("--output", "-o", required=True)
     args = parser.parse_args()
-    
-    out_path = build_docx_from_manifest(args.manifest, args.output)
-    print(f"Successfully generated and verified DOCX: {out_path} ({os.path.getsize(out_path)} bytes)")
+    output = build_docx_from_manifest(args.manifest, args.output)
+    print(f"DOCX generated and verified: {output} ({Path(output).stat().st_size} bytes)")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
-
+    raise SystemExit(main())
