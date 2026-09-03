@@ -204,7 +204,7 @@ def test_all_outputs_share_execution_record_source(pipeline_output) -> None:
         assert record.prompt in paths["prompt_record"].read_text(encoding="utf-8")
         assert record.backend in paths["parameter_record"].read_text(encoding="utf-8")
         assert record.record_asset_id in json.dumps([stage.model_dump(mode="json") for stage in manifest.stage_graph], ensure_ascii=False)
-        assert record.prompt in doc_text and record.backend in doc_text
+        assert record.model in doc_text
 
 
 def test_docx_media_matches_dynamic_schema_and_records(pipeline_output) -> None:

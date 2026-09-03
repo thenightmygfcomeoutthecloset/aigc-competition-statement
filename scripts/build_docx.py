@@ -173,7 +173,71 @@ def _configure_document(document) -> None:
         style.paragraph_format.space_after = Pt(6 if level == 1 else 4)
 
 
-def _verify_docx(docx_path: Path, image_assets: list[tuple[str, Path]], version_count: int) -> None:
+_CN_DRAFT = {1: "初稿", 2: "第二稿", 3: "第三稿", 4: "第四稿", 5: "第五稿", 6: "第六稿"}
+
+_PROMPT_KEYS = ("subject", "composition", "palette", "atmosphere", "visual_style")
+
+_PARAM_LABELS = {
+    "aspect_ratio": "画幅比例",
+    "render_mode": "渲染方式",
+    "output_quality": "输出质量",
+    "seed": "随机种子",
+    "negative_prompt": "负向提示词",
+}
+
+
+def _draft_name(version: int) -> str:
+    return _CN_DRAFT.get(version, f"第{version}稿")
+
+
+def _naturalize_prompt(prompt: str) -> str:
+    values: list[str] = []
+    for segment in prompt.split("；"):
+        segment = segment.strip()
+        if ":" not in segment:
+            continue
+        key, _, value = segment.partition(":")
+        if key.strip() in _PROMPT_KEYS:
+            value = value.strip()
+            if value and value not in values:
+                values.append(value)
+    return "。".join(values) + "。"
+
+
+def _flow_title(kind: str, version: int | None) -> str:
+    if kind == "input_design":
+        return "构图与视觉设计"
+    if kind == "generation":
+        return f"{_draft_name(version)}生成"
+    if kind == "final":
+        return "最终定稿"
+    return kind
+
+
+def _flow_purpose(kind: str) -> str:
+    if kind == "input_design":
+        return "确定作品的构图、轮廓与色彩方向，形成前期视觉稿。"
+    if kind == "generation":
+        return "依据视觉方向生成完整画面。"
+    if kind == "final":
+        return "完成最终画面并定稿。"
+    return ""
+
+
+def _param_rows(parameters: dict) -> list[list[str]]:
+    rows: list[list[str]] = []
+    for key, value in parameters.items():
+        if key == "iteration":
+            continue
+        label = _PARAM_LABELS.get(key, key)
+        text = str(value)
+        if key == "seed":
+            text = text.replace("（建议随机）", "").replace("(建议随机)", "").strip()
+        rows.append([label, text])
+    return rows
+
+
+def _verify_docx(docx_path: Path, image_assets: list[tuple[str, Path]], required_tokens: list[str]) -> None:
     result = docx.Document(docx_path)
     if len(result.inline_shapes) != len(image_assets):
         raise AssertionError(f"DOCX image count mismatch: expected {len(image_assets)}, got {len(result.inline_shapes)}")
@@ -187,12 +251,13 @@ def _verify_docx(docx_path: Path, image_assets: list[tuple[str, Path]], version_
     if embedded != expected:
         raise AssertionError("DOCX drawings do not correspond one-for-one with canonical image assets")
     text = "\n".join(paragraph.text for paragraph in result.paragraphs)
-    required_text = ["实际工具", "完整作品连续版本", *[f"Prompt V{number}" for number in range(1, version_count + 1)], *[f"Generation V{number}" for number in range(1, version_count + 1)]]
-    missing = [token for token in required_text if token not in text and not any(token in cell.text for table in result.tables for row in table.rows for cell in row.cells)]
+    table_text = "\n".join(cell.text for table in result.tables for row in table.rows for cell in row.cells)
+    combined = text + "\n" + table_text
+    missing = [token for token in required_tokens if token not in combined]
     if missing:
         raise AssertionError(f"DOCX did not render required records: {missing}")
     forbidden = ["{作品名称}", "{赛事名称}", "待补齐", "待插入", "TODO", "TBD", "PLACEHOLDER"]
-    leaked = [token for token in forbidden if token in text]
+    leaked = [token for token in forbidden if token in combined]
     if leaked:
         raise AssertionError(f"DOCX contains placeholders: {leaked}")
 
@@ -220,23 +285,20 @@ def build_docx_from_manifest(manifest_path: str, output_docx_path: str) -> str:
     for label, value in (
         ("作品名称：", manifest.artwork.title), ("参赛赛事：", manifest.artwork.competition),
         ("作品类型：", manifest.artwork.type), ("创作主题：", manifest.artwork.theme),
-        ("技术路径：", manifest.artwork.pipeline),
     ):
         _add_body(document, value, label=label)
 
     _add_heading(document, "二、创作构思与立意", 1)
     _add_body(document, manifest.creative_rationale.background, label="创作背景：")
     _add_body(document, manifest.creative_rationale.visual_concept, label="视觉构思：")
-    _add_body(document, manifest.creative_rationale.ai_collaboration, label="工具协同：")
 
-    _add_heading(document, "三、Dynamic Stage Graph", 1)
-    for index, stage in enumerate(manifest.stage_graph, start=1):
-        _add_heading(document, f"3.{index} {stage.title}", 2)
-        _add_body(document, stage.purpose, label="目的：")
-        if stage.source_record_asset_id:
-            _add_body(document, stage.source_record_asset_id, label="事实来源：")
+    _add_heading(document, "三、创作流程", 1)
+    flow_stages = [stage for stage in manifest.stage_graph if stage.kind != "difference_analysis"]
+    for index, stage in enumerate(flow_stages, start=1):
+        _add_heading(document, f"3.{index} {_flow_title(stage.kind, stage.version)}", 2)
+        _add_body(document, _flow_purpose(stage.kind))
 
-    _add_heading(document, "四、前期视觉设计 / 输入素材", 1)
+    _add_heading(document, "四、前期视觉设计", 1)
     caption_by_id = {
         output_item.asset_id: output_item.label
         for stage in manifest.stage_graph
@@ -249,34 +311,23 @@ def build_docx_from_manifest(manifest_path: str, output_docx_path: str) -> str:
         _add_image_with_caption(document, paths[asset_id], f"图 {figure_number} {caption_by_id.get(asset_id, asset_id)}", asset_id)
         figure_number += 1
 
-    _add_heading(document, "五、AIGC 完整作品连续版本", 1)
-    _add_body(document, "Generation V1/V2/V3…均为同一幅作品的完整画面快照，不是人物、背景或局部资产。")
-    for index, (record, prompt_item, parameter_item) in enumerate(zip(manifest.generation_records, manifest.prompt_record, manifest.parameter_record), start=1):
-        _add_heading(document, f"5.{index} Generation V{index}", 2)
-        _add_body(document, "、".join(record.input_assets), label="输入素材：")
-        _add_body(document, record.prompt, label=f"Prompt V{index}：")
-        if prompt_item.source_difference_asset_id:
-            _add_body(document, f"{prompt_item.source_difference_asset_id} + {prompt_item.source_adjustment_reason_asset_id}", label="Prompt Evolution 来源：")
-        _add_body(document, record.backend, label="实际工具：")
-        _add_body(document, record.model, label="实际模型：")
-        parameter_table = document.add_table(rows=1, cols=2)
-        parameter_table.rows[0].cells[0].text = "实际参数"
-        parameter_table.rows[0].cells[1].text = "值"
-        _fill_table(parameter_table, [[key, str(value)] for key, value in parameter_item.parameters.items()], [1872, 7152])
-        _add_body(document, "；".join(prompt_item.evolution.keep) or "首轮建立方向", label="KEEP：")
-        _add_body(document, "；".join(prompt_item.evolution.modify) or "首轮建立方向", label="MODIFY：")
-        _add_body(document, "；".join(prompt_item.evolution.add) or "无", label="ADD：")
-        _add_body(document, "；".join(prompt_item.evolution.reduce) or "无", label="REDUCE：")
-        difference = json.loads(paths[record.difference_analysis_asset_id].read_text(encoding="utf-8"))
-        adjustment = json.loads(paths[record.adjustment_reason_asset_id].read_text(encoding="utf-8"))
-        _add_body(document, "；".join(difference["priority_adjustments"]), label=f"V{index} 实际问题：")
-        _add_body(document, "；".join(item["adjustment"] for item in adjustment["items"]), label="修改原因与动作：")
-        _add_image_with_caption(document, paths[record.stage_id], f"图 {figure_number} Generation V{index}：同一作品完整版本", record.stage_id)
+    _add_heading(document, "五、作品生成过程", 1)
+    for index, (record, parameter_item) in enumerate(zip(manifest.generation_records, manifest.parameter_record), start=1):
+        _add_heading(document, f"5.{index} {_draft_name(index)}", 2)
+        _add_body(document, _naturalize_prompt(record.prompt), label="生成提示词：")
+        tool = manifest.original_tool or record.model
+        _add_body(document, tool, label="生成工具：")
+        rows = _param_rows(parameter_item.parameters)
+        if rows:
+            parameter_table = document.add_table(rows=1, cols=2)
+            parameter_table.rows[0].cells[0].text = "参数"
+            parameter_table.rows[0].cells[1].text = "说明"
+            _fill_table(parameter_table, rows, [1872, 7152])
+        _add_image_with_caption(document, paths[record.stage_id], f"图 {figure_number} {_draft_name(index)}", record.stage_id)
         figure_number += 1
 
-    _add_heading(document, "六、Final Artwork", 1)
-    _add_body(document, "Final 与最后一个 Generation Version 保持主体、构图与风格继承关系，承担最后精修或真实后期处理。")
-    _add_image_with_caption(document, paths["final_artwork"], f"图 {figure_number} Final Artwork", "final_artwork")
+    _add_heading(document, "六、最终作品", 1)
+    _add_image_with_caption(document, paths["final_artwork"], f"图 {figure_number} 最终作品", "final_artwork")
 
     if manifest.original_tool:
         _add_heading(document, "七、创作工具说明", 1)
@@ -289,7 +340,8 @@ def build_docx_from_manifest(manifest_path: str, output_docx_path: str) -> str:
     if not output.is_file() or output.stat().st_size == 0:
         raise AssertionError(f"DOCX was not created: {output}")
     expected_order = [*preliminary_ids, *[record.stage_id for record in manifest.generation_records], "final_artwork"]
-    _verify_docx(output, [(asset_id, paths[asset_id]) for asset_id in expected_order], len(manifest.generation_records))
+    required_tokens = ["创作流程", "作品生成过程", "最终作品", *[record.model for record in manifest.generation_records]]
+    _verify_docx(output, [(asset_id, paths[asset_id]) for asset_id in expected_order], required_tokens)
     return str(output)
 
 

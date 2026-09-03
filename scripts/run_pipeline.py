@@ -232,8 +232,8 @@ def run_pipeline(input_path: str, output_dir: str, title: str, competition: str,
     confirmations = analysis.get("confirmations") if isinstance(analysis.get("confirmations"), dict) else {}
     manifest: dict[str, Any] = {
         "schema_version": "0.3.0", "mode": "Reconstruction Mode",
-        "artwork": {"title": title.strip(), "competition": competition.strip(), "type": str(analysis.get("type", "数字图像")).strip(), "theme": analysis["theme"], "pipeline": f"Final Artwork → Analysis → Pre-generation Inputs → {' → '.join(record['stage_id'] for record in records)} → Final"},
-        "creative_rationale": {"background": str(analysis.get("creative_background", f"围绕“{analysis['theme']}”整理作品的视觉表达。")), "visual_concept": f"主体：{analysis['subject']}；构图：{analysis['composition']}；色彩：{analysis['palette']}。", "ai_collaboration": "每个 generation_vN 都是同一幅完整作品的生成执行快照；轮次由实际收敛状态动态决定。"},
+        "artwork": {"title": title.strip(), "competition": competition.strip(), "type": str(analysis.get("type", "数字图像")).strip(), "theme": analysis["theme"], "pipeline": "文生图生成 → 前期视觉设计 → 完整画面生成 → 最终定稿"},
+        "creative_rationale": {"background": str(analysis.get("creative_background", f"围绕“{analysis['theme']}”整理作品的视觉表达。")), "visual_concept": f"主体：{analysis['subject']}；构图：{analysis['composition']}；色彩：{analysis['palette']}。", "ai_collaboration": "本作品采用文生图方式完成，先确定构图与色彩方向，再生成完整画面并迭代优化至最终效果。"},
         "assets": [], "generation_records": records, "prompt_record": prompts, "parameter_record": parameters_record, "stage_graph": stages,
     }
     original_tool = _original_tool(confirmations)
