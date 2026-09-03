@@ -28,19 +28,13 @@ def load_canonical_schema(schema_path: str | None = None) -> dict[str, Any]:
         raise CanonicalSchemaError("Canonical asset schema must contain assets and asset_families mappings")
     if not data["assets"]:
         raise CanonicalSchemaError("Canonical asset schema assets mapping must not be empty")
-    allowed = set(data.get("evidence_levels", []))
-    if not allowed:
-        raise CanonicalSchemaError("Canonical asset schema must define evidence_levels")
     for asset_id, spec in data["assets"].items():
         if not isinstance(spec, dict) or not spec.get("type"):
             raise CanonicalSchemaError(f"Asset {asset_id!r} has no type")
-        levels = set(spec.get("evidence_levels", []))
-        if not levels or not levels <= allowed:
-            raise CanonicalSchemaError(f"Asset {asset_id!r} has invalid evidence_levels")
         if spec.get("type") != "text" and not (spec.get("filename") or spec.get("filename_pattern")):
             raise CanonicalSchemaError(f"File asset {asset_id!r} has no filename")
     for family, spec in data["asset_families"].items():
-        if not all(spec.get(key) for key in ("id_pattern", "filename_pattern", "type", "evidence_levels")):
+        if not all(spec.get(key) for key in ("id_pattern", "filename_pattern", "type")):
             raise CanonicalSchemaError(f"Asset family {family!r} is incomplete")
     policy = data.get("generation_policy", {})
     if not 1 <= int(policy.get("minimum_versions", 0)) <= int(policy.get("absolute_max_versions", 0)):

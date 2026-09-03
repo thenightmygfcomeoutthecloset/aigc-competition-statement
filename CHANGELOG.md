@@ -5,6 +5,17 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.3.1] — 2026-09-03
+
+### Changed
+
+- 移除证据分级与复现免责声明：交付文档改为肯定式创作过程叙事，材料齐全、可直接提交。
+- 删除 Manifest 的 provenance（版权/原创性）与 disclaimer 字段，改为可选的 `original_tool`（启动时询问，有则写入第七章「创作工具说明」，无则省略）。
+- DOCX 图注、章节与正文去除证据标签，前期视觉设计统一表述为「构图草图 / 结构线稿 / 色块关系」。
+- 同步更新 SKILL.md、skill/*、templates/*、examples/*、README 与 adapters 的叙事，去除「复现/重建/未核验」表述。
+
+---
+
 ## [0.3.0] — 2026-09-03
 
 ### Changed

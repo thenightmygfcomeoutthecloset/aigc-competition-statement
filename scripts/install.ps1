@@ -11,7 +11,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $SKILL_NAME = "aigc-competition-statement"
-$SKILL_VERSION = "0.3.0"
+$SKILL_VERSION = "0.3.1"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptDir
 

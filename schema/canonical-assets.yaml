@@ -1,40 +1,39 @@
 schema_version: "2.0"
-manifest_version: "0.3.0"
-evidence_levels: ["[Verified]", "[User-reported]", "[Reconstructed]", "[Unknown]"]
+manifest_version: "0.3.1"
 
 # Fixed assets exist once per run. Versioned files use asset_families so the
 # number of complete generation snapshots can be chosen dynamically.
 assets:
   final_artwork:
-    {type: image, filename: final.png, required: true, embed_in_docx: true, evidence_levels: ["[Verified]", "[User-reported]"]}
+    {type: image, filename: final.png, required: true, embed_in_docx: true}
   reconstructed_sketch:
-    {type: image, filename: 01_reconstructed_sketch.png, required: true, embed_in_docx: true, operator: reference_to_sketch, evidence_levels: ["[Reconstructed]"]}
+    {type: image, filename: 01_reconstructed_sketch.png, required: true, embed_in_docx: true, operator: reference_to_sketch}
   reconstructed_lineart:
-    {type: image, filename: 01_reconstructed_lineart.png, required: true, embed_in_docx: true, operator: reference_to_lineart, evidence_levels: ["[Reconstructed]"]}
+    {type: image, filename: 01_reconstructed_lineart.png, required: true, embed_in_docx: true, operator: reference_to_lineart}
   reconstructed_color_block:
-    {type: image, filename: 01_reconstructed_color_block.png, required: true, embed_in_docx: true, operator: reference_to_color_block, evidence_levels: ["[Reconstructed]"]}
+    {type: image, filename: 01_reconstructed_color_block.png, required: true, embed_in_docx: true, operator: reference_to_color_block}
   artwork_analysis:
-    {type: json, filename: artwork-analysis.json, required: true, evidence_levels: ["[Reconstructed]", "[Verified]", "[User-reported]"]}
+    {type: json, filename: artwork-analysis.json, required: true}
   prompt_record:
-    {type: document, filename: prompt-record.md, required: true, evidence_levels: ["[Verified]", "[User-reported]", "[Reconstructed]"]}
+    {type: document, filename: prompt-record.md, required: true}
   parameter_record:
-    {type: document, filename: parameter-record.md, required: true, evidence_levels: ["[Verified]", "[User-reported]", "[Reconstructed]"]}
+    {type: document, filename: parameter-record.md, required: true}
   stage_process_record:
-    {type: json, filename: stage-graph.json, required: true, evidence_levels: ["[Verified]", "[User-reported]", "[Reconstructed]"]}
+    {type: json, filename: stage-graph.json, required: true}
   statement_docx:
-    {type: document, filename_pattern: "{title}_{competition}_AIGC说明书.docx", required: true, generated_output: true, evidence_levels: ["[Reconstructed]"]}
+    {type: document, filename_pattern: "{title}_{competition}_AIGC说明书.docx", required: true, generated_output: true}
 
 asset_families:
   generation:
-    {id_pattern: "generation_v{version}", filename_pattern: "{sequence:02d}_generation_v{version}.png", sequence_offset: 3, type: image, embed_in_docx: true, evidence_levels: ["[Reconstructed]", "[Verified]", "[User-reported]"], semantic: complete_artwork_version}
+    {id_pattern: "generation_v{version}", filename_pattern: "{sequence:02d}_generation_v{version}.png", sequence_offset: 3, type: image, embed_in_docx: true, semantic: complete_artwork_version}
   generation_request:
-    {id_pattern: "generation_request_v{version}", filename_pattern: "generation_requests/v{version}.json", type: json, evidence_levels: ["[Reconstructed]", "[Verified]", "[User-reported]"]}
+    {id_pattern: "generation_request_v{version}", filename_pattern: "generation_requests/v{version}.json", type: json}
   generation_record:
-    {id_pattern: "generation_record_v{version}", filename_pattern: "generation_records/v{version}.json", type: json, evidence_levels: ["[Reconstructed]", "[Verified]", "[User-reported]"]}
+    {id_pattern: "generation_record_v{version}", filename_pattern: "generation_records/v{version}.json", type: json}
   difference_analysis:
-    {id_pattern: "difference_analysis_v{version}", filename_pattern: "difference_analysis/v{version}.json", type: json, evidence_levels: ["[Reconstructed]", "[Verified]", "[User-reported]"]}
+    {id_pattern: "difference_analysis_v{version}", filename_pattern: "difference_analysis/v{version}.json", type: json}
   adjustment_reason:
-    {id_pattern: "adjustment_reason_v{version}", filename_pattern: "adjustment_reasons/v{version}.json", type: json, evidence_levels: ["[Reconstructed]", "[Verified]", "[User-reported]"]}
+    {id_pattern: "adjustment_reason_v{version}", filename_pattern: "adjustment_reasons/v{version}.json", type: json}
 
 generation_policy:
   minimum_versions: 1

@@ -242,7 +242,7 @@ def test_backend_unavailable_is_explicit(workdir: Path) -> None:
     assert not list((workdir / "out").glob("*_generation_v*.png"))
 
 
-@pytest.mark.parametrize("mutation", ["empty", "missing_field", "empty_graph", "duplicate_stage", "same_prompt", "bad_backend", "bad_evidence", "missing_image", "zero_image", "corrupt_image", "bad_hash", "absolute_path", "record_drift", "request_drift", "difference_drift"])
+@pytest.mark.parametrize("mutation", ["empty", "missing_field", "empty_graph", "duplicate_stage", "same_prompt", "bad_backend", "extra_field", "missing_image", "zero_image", "corrupt_image", "bad_hash", "absolute_path", "record_drift", "request_drift", "difference_drift"])
 def test_invalid_manifests_fail_nonzero(pipeline_output, workdir: Path, mutation: str) -> None:
     _, source = pipeline_output
     root = workdir / mutation
@@ -264,8 +264,8 @@ def test_invalid_manifests_fail_nonzero(pipeline_output, workdir: Path, mutation
     elif mutation == "bad_backend":
         data["generation_records"][0]["backend"] = "opencv_filter"
         data["parameter_record"][0]["backend"] = "opencv_filter"
-    elif mutation == "bad_evidence":
-        data["assets"][0]["evidence_level"] = "[Invented]"
+    elif mutation == "extra_field":
+        data["assets"][0]["unexpected_field"] = "x"
     elif mutation in {"missing_image", "zero_image", "corrupt_image", "bad_hash", "absolute_path"}:
         asset = next(item for item in data["assets"] if item["id"] == "generation_v1")
         image_path = paths["generation_v1"]
@@ -352,7 +352,7 @@ def test_cli_files_have_git_executable_mode() -> None:
 
 
 def test_schema_policy_and_repository_consistency() -> None:
-    assert load_canonical_schema()["manifest_version"] == "0.3.0"
+    assert load_canonical_schema()["manifest_version"] == "0.3.1"
     assert generation_policy()["absolute_max_versions"] > generation_policy()["minimum_versions"]
     assert check_consistency.check_version_sync() == []
     assert check_consistency.check_canonical_schema() == []

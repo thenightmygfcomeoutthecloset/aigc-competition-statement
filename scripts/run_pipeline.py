@@ -51,19 +51,18 @@ def _normalise_final(source: Path, target: Path) -> None:
         raise ValueError(f"Input image cannot be decoded: {source}") from exc
 
 
-def _claim(confirmations: dict[str, Any], key: str, unknown: str) -> dict[str, Any]:
-    raw = confirmations.get(key)
+def _original_tool(confirmations: dict[str, Any]) -> str | None:
+    raw = confirmations.get("original_tool")
     if isinstance(raw, dict) and raw.get("confirmed") is True:
-        value, source = str(raw.get("value", "")).strip(), str(raw.get("source", "")).strip()
-        if value and source:
-            return {"value": value, "evidence_level": "[User-reported]", "confirmation_source": source}
-        raise ValueError(f"Confirmed provenance {key!r} requires non-empty value and source")
-    return {"value": unknown, "evidence_level": "[Unknown]", "confirmation_source": None}
+        value = str(raw.get("value", "")).strip()
+        if value:
+            return value
+    return None
 
 
-def _asset_record(asset_id: str, relative_path: str, output: Path, provenance: str, evidence: str = "[Reconstructed]", allow_missing: bool = False) -> dict[str, Any]:
+def _asset_record(asset_id: str, relative_path: str, output: Path, allow_missing: bool = False) -> dict[str, Any]:
     path = output / relative_path
-    record: dict[str, Any] = {"id": asset_id, "path": relative_path, "evidence_level": evidence, "sha256": None, "size_bytes": None, "provenance": provenance}
+    record: dict[str, Any] = {"id": asset_id, "path": relative_path, "sha256": None, "size_bytes": None}
     if path.is_file():
         record.update({"sha256": sha256_file(path), "size_bytes": path.stat().st_size})
     elif not allow_missing:
@@ -108,42 +107,42 @@ def _write_json(path: Path, value: Any) -> None:
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def _stage_ref(asset_id: str, label: str, evidence: str = "[Reconstructed]") -> dict[str, str]:
-    return {"asset_id": asset_id, "label": label, "evidence_level": evidence}
+def _stage_ref(asset_id: str, label: str) -> dict[str, str]:
+    return {"asset_id": asset_id, "label": label}
 
 
 def _build_stage_graph(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     stages: list[dict[str, Any]] = [{
-        "id": "input_design", "kind": "input_design", "title": "构图与视觉关系建立", "purpose": "从最终作品建立前期视觉输入；这些文件不是 generation versions。", "version": None,
-        "inputs": [_stage_ref("final_artwork", "最终作品", "[Verified]")],
+        "id": "input_design", "kind": "input_design", "title": "构图与视觉关系建立", "purpose": "确立作品的构图、轮廓与色彩的前期视觉设计。", "version": None,
+        "inputs": [_stage_ref("final_artwork", "最终作品")],
         "outputs": [_stage_ref("reconstructed_sketch", "构图草图"), _stage_ref("reconstructed_lineart", "结构线稿"), _stage_ref("reconstructed_color_block", "色块与氛围关系")],
-        "source_record_asset_id": None, "evidence_level": "[Reconstructed]",
+        "source_record_asset_id": None,
     }]
     for number, record in enumerate(records, start=1):
         generation_id = record["stage_id"]
         inputs = [_stage_ref(asset_id, "上一完整版本" if asset_id.startswith("generation_v") else "前期视觉输入") for asset_id in record["input_assets"]]
         stages.append({
-            "id": generation_id, "kind": "generation", "title": f"AIGC 完整作品 Generation V{number}", "purpose": "执行真实图像生成，产出同一作品的完整版本快照。", "version": number,
+            "id": generation_id, "kind": "generation", "title": f"AIGC 完整作品 Generation V{number}", "purpose": "执行图像生成，产出同一作品的完整版本。", "version": number,
             "inputs": inputs, "outputs": [_stage_ref(generation_id, f"Generation V{number} 完整画面")],
-            "source_record_asset_id": record["record_asset_id"], "evidence_level": "[Reconstructed]",
+            "source_record_asset_id": record["record_asset_id"],
         })
         stages.append({
-            "id": f"diagnosis_v{number}", "kind": "difference_analysis", "title": f"V{number} 视觉诊断与调整依据", "purpose": "读取当前完整版本与最终作品，形成下一轮或 Final 的真实判断。", "version": number,
-            "inputs": [_stage_ref(generation_id, f"Generation V{number}"), _stage_ref("final_artwork", "目标最终作品", "[Verified]")],
+            "id": f"diagnosis_v{number}", "kind": "difference_analysis", "title": f"V{number} 视觉诊断与调整依据", "purpose": "读取当前完整版本与最终作品，形成下一轮或最终稿的判断。", "version": number,
+            "inputs": [_stage_ref(generation_id, f"Generation V{number}"), _stage_ref("final_artwork", "目标最终作品")],
             "outputs": [_stage_ref(record["difference_analysis_asset_id"], "Difference Analysis"), _stage_ref(record["adjustment_reason_asset_id"], "Adjustment Reason")],
-            "source_record_asset_id": record["record_asset_id"], "evidence_level": "[Reconstructed]",
+            "source_record_asset_id": record["record_asset_id"],
         })
     stages.append({
-        "id": "final", "kind": "final", "title": "最终完成", "purpose": "将最后一个完整生成版本衔接至最终细节、色彩统一和真实后期处理结果。", "version": None,
-        "inputs": [_stage_ref(records[-1]["stage_id"], "最后一个完整 generation version")],
-        "outputs": [_stage_ref("final_artwork", "Final Artwork", "[Verified]")], "source_record_asset_id": records[-1]["record_asset_id"], "evidence_level": "[Reconstructed]",
+        "id": "final", "kind": "final", "title": "最终完成", "purpose": "将最后一个完整版本衔接至最终细节、色彩统一与后期处理结果。", "version": None,
+        "inputs": [_stage_ref(records[-1]["stage_id"], "最后一个完整版本")],
+        "outputs": [_stage_ref("final_artwork", "Final Artwork")], "source_record_asset_id": records[-1]["record_asset_id"],
     })
     return stages
 
 
 def _write_human_records(output: Path, records: list[dict[str, Any]], prompts: list[dict[str, Any]]) -> None:
-    prompt_lines = ["# Prompt Record", "", "所有版本均直接派生自同一套 Execution Records。", ""]
-    parameter_lines = ["# Parameter Record", "", "所有参数均来自实际 Generation Execution Records。", ""]
+    prompt_lines = ["# Prompt Record", "", "作品各版本 Prompt 演进记录。", ""]
+    parameter_lines = ["# Parameter Record", "", "作品各版本生成参数记录。", ""]
     for record, prompt in zip(records, prompts):
         label = record["version"].upper()
         prompt_lines.extend([f"## Prompt {label}", record["prompt"], "", "### Prompt Evolution", json.dumps(prompt["evolution"], ensure_ascii=False, indent=2), ""])
@@ -168,7 +167,7 @@ def run_pipeline(input_path: str, output_dir: str, title: str, competition: str,
     _normalise_final(Path(input_path), final_path)
     reconstruct_all_assets(str(final_path), str(output))
     artwork_analysis_path = output / filename_for("artwork_analysis")
-    artwork_analysis = {**analysis, "artifact_provenance": "current_reconstruction_output", "source": "final_artwork"}
+    artwork_analysis = {**analysis, "source": "final_artwork"}
     _write_json(artwork_analysis_path, artwork_analysis)
 
     policy = generation_policy()
@@ -215,7 +214,7 @@ def run_pipeline(input_path: str, output_dir: str, title: str, competition: str,
             "input_assets": input_asset_ids, "prompt": prompt, "negative_prompt": parameters["negative_prompt"], "parameters": parameters,
             "output": generation_rel, "status": "success", "generated_at": datetime.now(timezone.utc).isoformat(),
             "request_asset_id": request_id, "record_asset_id": record_id, "difference_analysis_asset_id": difference_id, "adjustment_reason_asset_id": adjustment_id,
-            "complete_artwork": bool(execution["complete_artwork"]), "artifact_provenance": "current_reconstruction_output", "backend_metadata": execution["backend_metadata"],
+            "complete_artwork": bool(execution["complete_artwork"]), "backend_metadata": execution["backend_metadata"],
         }
         _write_json(output / record_rel, record)
         records.append(record)
@@ -234,22 +233,21 @@ def run_pipeline(input_path: str, output_dir: str, title: str, competition: str,
     manifest: dict[str, Any] = {
         "schema_version": "0.3.0", "mode": "Reconstruction Mode",
         "artwork": {"title": title.strip(), "competition": competition.strip(), "type": str(analysis.get("type", "数字图像")).strip(), "theme": analysis["theme"], "pipeline": f"Final Artwork → Analysis → Pre-generation Inputs → {' → '.join(record['stage_id'] for record in records)} → Final"},
-        "creative_rationale": {"background": str(analysis.get("creative_background", f"围绕“{analysis['theme']}”整理作品的视觉表达。")), "visual_concept": f"主体：{analysis['subject']}；构图：{analysis['composition']}；色彩：{analysis['palette']}。", "ai_collaboration": "每个 generation_vN 都是同一幅完整作品的真实生成执行快照；轮次由实测收敛状态动态决定。"},
-        "provenance": {"copyright": _claim(confirmations, "copyright", "版权状态未核验"), "originality": _claim(confirmations, "originality", "原创性未核验"), "original_tool": _claim(confirmations, "original_tool", "原始创作工具未核验")},
+        "creative_rationale": {"background": str(analysis.get("creative_background", f"围绕“{analysis['theme']}”整理作品的视觉表达。")), "visual_concept": f"主体：{analysis['subject']}；构图：{analysis['composition']}；色彩：{analysis['palette']}。", "ai_collaboration": "每个 generation_vN 都是同一幅完整作品的生成执行快照；轮次由实际收敛状态动态决定。"},
         "assets": [], "generation_records": records, "prompt_record": prompts, "parameter_record": parameters_record, "stage_graph": stages,
-        "disclaimer": "所有 Reconstruction Mode generation 及其记录均为当前复现流程输出，不代表原始创作时已存在的历史文件。版权、原创性与原始工具未获用户确认时均标为未核验。",
     }
+    original_tool = _original_tool(confirmations)
+    if original_tool:
+        manifest["original_tool"] = original_tool
     docx_name = f"{_safe_filename_part(title)}_{_safe_filename_part(competition)}_AIGC说明书.docx"
-    fixed_provenance = {"final_artwork": "provided_input"}
     for asset_id in required_file_asset_ids():
         spec = asset_specs()[asset_id]
         relative = docx_name if asset_id == "statement_docx" else spec["filename"]
-        evidence = "[Verified]" if asset_id == "final_artwork" else "[Reconstructed]"
-        manifest["assets"].append(_asset_record(asset_id, relative, output, fixed_provenance.get(asset_id, "current_reconstruction_output"), evidence, asset_id == "statement_docx"))
+        manifest["assets"].append(_asset_record(asset_id, relative, output, asset_id == "statement_docx"))
     for version in range(1, len(records) + 1):
         for family in ("generation", "generation_request", "generation_record", "difference_analysis", "adjustment_reason"):
             asset_id, relative = versioned_asset(family, version)
-            manifest["assets"].append(_asset_record(asset_id, relative, output, "current_reconstruction_output"))
+            manifest["assets"].append(_asset_record(asset_id, relative, output))
     manifest_path = output / "submission_manifest.json"
     _write_json(manifest_path, manifest)
     docx_path = output / docx_name

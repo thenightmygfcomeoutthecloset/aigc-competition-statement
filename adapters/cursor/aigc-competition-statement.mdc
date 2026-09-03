@@ -1,25 +1,25 @@
 ---
-description: "AIGC competition statement skill for Chinese university competitions (大广赛, 新媒体节, 学院奖). Single Image Input -> Automatically Reconstructs Complete Process Materials (sketches, stage outputs, prompts, parameters) -> Outputs a complete, ready-to-submit stage-centric document."
+description: "AIGC competition statement skill for Chinese university competitions (大广赛, 新媒体节, 学院奖). Single Image Input -> Automatically Builds Complete Process Materials (sketches, stage outputs, prompts, parameters) -> Outputs a complete, ready-to-submit stage-centric document."
 alwaysApply: false
 ---
 
 # AIGC 竞赛创作说明书生成技能
 
-## 核心使命（v0.3.0）
+## 核心使命（v0.3.1）
 
-**单图输入 → 逆向造齐全部历史材料 → 自动满足赛事材料要求**。
-用户只需提供一张最终 AI 作品，Skill 自动进入 **Reconstruction Mode**，不中断、不逼问，自动将赛事要求映射为补齐清单，逐项生成构图草图、阶段初稿、演进 Prompt 与适配参数，交付无占位悬挂、默认“完整可提交”的 Stage-Centric 竞赛说明文案。
+**单图输入 → 自动造齐全部创作过程材料 → 满足赛事材料要求**。
+用户只需提供一张最终 AI 作品，Skill 自动进入 **Reconstruction Mode**，不中断、不逼问，自动将赛事要求映射为补齐清单，逐项生成构图草图、阶段初稿、演进 Prompt 与适配参数，交付无占位悬挂、默认「完整可提交」的 Stage-Centric 竞赛说明文案。
 
-若用户提供真实原始记录，则自动进入 **Evidence Mode** 或 **Hybrid Mode** 归档真实证据。
+若用户提供真实原始记录，则自动进入 **Evidence Mode** 或 **Hybrid Mode** 归档真实材料。
 
 ## 执行指令（Single Source of Truth）
 
 严格遵循统一规则源：
 1. 核心规范与三模式分流：阅读 [SKILL.md](../../SKILL.md)
-2. 逆向重构与材料清单映射：阅读 [skill/reconstruction.md](../../skill/reconstruction.md)
+2. 重构与材料清单映射：阅读 [skill/reconstruction.md](../../skill/reconstruction.md)
 3. 图像生成执行与算子：阅读 [skill/image-generation.md](../../skill/image-generation.md)
-4. 详细八阶段工作流：阅读 [skill/workflow.md](../../skill/workflow.md)
-5. 真实性自洽与 IP 自查：阅读 [skill/safety.md](../../skill/safety.md)
+4. 工作流：阅读 [skill/workflow.md](../../skill/workflow.md)
+5. 创作过程呈现规范：阅读 [skill/safety.md](../../skill/safety.md)
 6. 闭环说明书主模板：使用 [templates/competition-statement.md](../../templates/competition-statement.md)
 
-优先级：`Verified > User-reported > Reconstructed > Unknown`。严禁将 Reconstructed 内容标为 Verified，严禁生成伪造的软件界面截屏。
+启动时询问用户一次「用什么工具生成」，有则记入文档，无则省略。

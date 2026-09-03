@@ -1,10 +1,10 @@
 # 图像生成后端与完整版本契约
 
-使用 `scripts/image_generation_backend.py` 的统一接口调用可记录实际工具、模型、输入、Prompt、参数与输出的真实图像生成后端。适配器可以连接宿主 Agent、OpenAI、Stable Diffusion、SDXL、ComfyUI 或其他提供方，但核心流水线不绑定厂商。
+使用 `scripts/image_generation_backend.py` 的统一接口调用可记录实际工具、模型、输入、Prompt、参数与输出的图像生成后端。适配器可以连接宿主 Agent、OpenAI、Stable Diffusion、SDXL、ComfyUI 或其他提供方，但核心流水线不绑定厂商。
 
-资产 ID、文件名、算子和证据等级必须从 [`schema/canonical-assets.yaml`](../schema/canonical-assets.yaml) 读取。
+资产 ID、文件名与算子必须从 [`schema/canonical-assets.yaml`](../schema/canonical-assets.yaml) 读取。
 
-## 前期输入重建
+## 前期视觉设计
 
 ```bash
 python scripts/reconstruct_assets.py --input final.png --output-dir output

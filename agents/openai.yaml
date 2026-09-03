@@ -1,4 +1,4 @@
 interface:
   display_name: "比赛 AI 声明"
-  short_description: "核对赛事要求并生成可核验的 AIGC 创作过程声明"
+  short_description: "核对赛事要求并生成完整的 AIGC 创作过程声明"
   default_prompt: "使用 $aigc-competition-statement 核对比赛要求并整理一份可提交的 AIGC 创作过程声明。"

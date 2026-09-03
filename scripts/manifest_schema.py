@@ -23,7 +23,6 @@ from canonical_schema import (
 REPO_ROOT = Path(__file__).resolve().parent.parent
 JSON_SCHEMA_PATH = REPO_ROOT / "schema" / "submission-manifest.schema.json"
 NonEmpty = Annotated[str, Field(min_length=1)]
-EvidenceLevel = Literal["[Verified]", "[User-reported]", "[Reconstructed]", "[Unknown]"]
 Scalar = str | int | float | bool
 
 
@@ -45,33 +44,11 @@ class CreativeRationale(StrictModel):
     ai_collaboration: NonEmpty
 
 
-class ProvenanceClaim(StrictModel):
-    value: NonEmpty
-    evidence_level: Literal["[User-reported]", "[Unknown]"]
-    confirmation_source: str | None
-
-    @model_validator(mode="after")
-    def validate_source(self) -> "ProvenanceClaim":
-        if self.evidence_level == "[User-reported]" and not (self.confirmation_source or "").strip():
-            raise ValueError("User-reported provenance requires confirmation_source")
-        if self.evidence_level == "[Unknown]" and "未核验" not in self.value:
-            raise ValueError("Unknown provenance must be explicitly marked 未核验")
-        return self
-
-
-class Provenance(StrictModel):
-    copyright: ProvenanceClaim
-    originality: ProvenanceClaim
-    original_tool: ProvenanceClaim
-
-
 class AssetRecord(StrictModel):
     id: NonEmpty
     path: NonEmpty
-    evidence_level: EvidenceLevel
     sha256: str | None
     size_bytes: int | None = Field(ge=1)
-    provenance: Literal["provided_input", "current_reconstruction_output", "verified_historical_asset"]
 
 
 class PromptEvolution(StrictModel):
@@ -100,7 +77,6 @@ class GenerationRecord(StrictModel):
     difference_analysis_asset_id: NonEmpty
     adjustment_reason_asset_id: NonEmpty
     complete_artwork: Literal[True]
-    artifact_provenance: Literal["current_reconstruction_output", "verified_historical_asset"]
     backend_metadata: dict[str, Any]
 
 
@@ -125,7 +101,6 @@ class ParameterVersion(StrictModel):
 class StageRef(StrictModel):
     asset_id: NonEmpty
     label: NonEmpty
-    evidence_level: EvidenceLevel
 
 
 class Stage(StrictModel):
@@ -137,7 +112,6 @@ class Stage(StrictModel):
     inputs: list[StageRef] = Field(min_length=1)
     outputs: list[StageRef] = Field(min_length=1)
     source_record_asset_id: str | None
-    evidence_level: EvidenceLevel
 
 
 class Manifest(StrictModel):
@@ -145,13 +119,12 @@ class Manifest(StrictModel):
     mode: Literal["Evidence Mode", "Hybrid Mode", "Reconstruction Mode"]
     artwork: Artwork
     creative_rationale: CreativeRationale
-    provenance: Provenance
+    original_tool: str | None = None
     assets: list[AssetRecord] = Field(min_length=1)
     generation_records: list[GenerationRecord] = Field(min_length=1)
     prompt_record: list[PromptVersion] = Field(min_length=1)
     parameter_record: list[ParameterVersion] = Field(min_length=1)
     stage_graph: list[Stage] = Field(min_length=1)
-    disclaimer: NonEmpty
 
     @model_validator(mode="after")
     def validate_causal_chain(self) -> "Manifest":
@@ -200,7 +173,7 @@ class Manifest(StrictModel):
             if record.stage_id != generation_id or record.output != generation_path:
                 raise ValueError(f"{version} output does not match canonical generation asset")
             if (record.request_asset_id, record.record_asset_id, record.difference_analysis_asset_id, record.adjustment_reason_asset_id) != (request_id, record_id, difference_id, adjustment_id):
-                raise ValueError(f"{version} execution record references incorrect evidence assets")
+                raise ValueError(f"{version} execution record references incorrect record assets")
             prompt_item, parameter_item = self.prompt_record[number - 1], self.parameter_record[number - 1]
             if prompt_item.prompt != record.prompt or prompt_item.source_record_asset_id != record_id:
                 raise ValueError(f"{version} Prompt Record is not derived from its execution record")
@@ -221,13 +194,10 @@ class Manifest(StrictModel):
                     raise ValueError(f"{version} Prompt Evolution is not linked to the preceding diagnosis")
             elif prompt_item.source_difference_asset_id is not None or prompt_item.source_adjustment_reason_asset_id is not None:
                 raise ValueError("v1 cannot claim a preceding Difference Analysis")
-        levels = {asset.id: asset.evidence_level for asset in self.assets}
         for stage in self.stage_graph:
             refs = [*stage.inputs, *stage.outputs]
             if any(ref.asset_id not in known for ref in refs):
                 raise ValueError(f"Stage {stage.id} references an unknown asset")
-            if any(ref.evidence_level != levels[ref.asset_id] for ref in refs):
-                raise ValueError(f"Stage {stage.id} evidence does not match its asset")
         generation_stages = [stage for stage in self.stage_graph if stage.kind == "generation"]
         diagnosis_stages = [stage for stage in self.stage_graph if stage.kind == "difference_analysis"]
         if len(generation_stages) != len(self.generation_records):
@@ -240,7 +210,7 @@ class Manifest(StrictModel):
         for stage, record in zip(diagnosis_stages, self.generation_records):
             output_ids = {item.asset_id for item in stage.outputs}
             if stage.source_record_asset_id != record.record_asset_id or output_ids != {record.difference_analysis_asset_id, record.adjustment_reason_asset_id}:
-                raise ValueError("Stage Graph diagnosis stage is not tied to execution evidence")
+                raise ValueError("Stage Graph diagnosis stage is not tied to its execution record")
         return self
 
 
@@ -310,8 +280,6 @@ def validate_manifest_file(manifest_path: str | Path, *, verify_files: bool = Tr
             raise ManifestValidationError(f"Asset size or hash mismatch: {asset.id}")
         dynamic = match_versioned_asset(asset.id, asset.path) if asset.id not in specs else None
         spec = specs.get(asset.id) or families[dynamic[0]]
-        if asset.evidence_level not in spec["evidence_levels"]:
-            raise ManifestValidationError(f"Invalid evidence level for {asset.id}")
         if spec["type"] == "image":
             try:
                 with Image.open(asset_path) as image:

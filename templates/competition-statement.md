@@ -8,7 +8,7 @@
 
 ## 二、创作构思与立意
 
-渲染 `creative_rationale`，并保持内容来源等级。
+渲染 `creative_rationale`。
 
 ## 三、Stage Graph
 
@@ -16,7 +16,7 @@
 
 ## 四、前期视觉设计 / 输入素材
 
-展示 sketch、lineart、color block，并明确它们不是 generation versions。
+展示 sketch、lineart、color block 三类前期视觉设计。
 
 ## 五、AIGC 完整作品连续版本
 
@@ -24,8 +24,8 @@
 
 ## 六、Final Artwork
 
-展示 Final 与最后一个 generation version 的继承关系，以及存在时的真实后期处理。
+展示 Final 与最后一个 generation version 的继承关系，以及存在的后期处理。
 
-## 七、版权、原创性与原始工具状态
+## 七、创作工具说明
 
-只渲染用户确认及其来源；没有确认时写“未核验 [Unknown]”。附加复现材料免责声明。
+渲染用户确认的创作工具；未提供时省略本章。

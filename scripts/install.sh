@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SKILL_NAME="aigc-competition-statement"
-SKILL_VERSION="0.3.0"
+SKILL_VERSION="0.3.1"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 PLATFORM="${1:-}"

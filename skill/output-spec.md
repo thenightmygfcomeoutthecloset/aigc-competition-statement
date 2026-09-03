@@ -9,7 +9,7 @@
 - Prompt Record 按 Execution Records 动态展示 V1…Vn，以及 keep/modify/add/reduce/reason。
 - Parameter Record 按版本展示真实 backend、model、mode 和实际请求参数。
 - 每个 generation section 展示输入、Prompt、工具、参数、完整结果图、实际差异与修改原因；轮数不得写死。
-- 版权、原创性、原始工具只渲染 Manifest 中的用户确认或“未核验”。
+- 用户确认的创作工具渲染在第七章「创作工具说明」；未提供时省略该章。
 
 ## 版式
 

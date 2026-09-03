@@ -187,7 +187,7 @@ def _verify_docx(docx_path: Path, image_assets: list[tuple[str, Path]], version_
     if embedded != expected:
         raise AssertionError("DOCX drawings do not correspond one-for-one with canonical image assets")
     text = "\n".join(paragraph.text for paragraph in result.paragraphs)
-    required_text = ["实际工具", "版权状态", "完整作品连续版本", *[f"Prompt V{number}" for number in range(1, version_count + 1)], *[f"Generation V{number}" for number in range(1, version_count + 1)]]
+    required_text = ["实际工具", "完整作品连续版本", *[f"Prompt V{number}" for number in range(1, version_count + 1)], *[f"Generation V{number}" for number in range(1, version_count + 1)]]
     missing = [token for token in required_text if token not in text and not any(token in cell.text for table in result.tables for row in table.rows for cell in row.cells)]
     if missing:
         raise AssertionError(f"DOCX did not render required records: {missing}")
@@ -242,12 +242,11 @@ def build_docx_from_manifest(manifest_path: str, output_docx_path: str) -> str:
         for stage in manifest.stage_graph
         for output_item in stage.outputs
     }
-    caption_by_id["final_artwork"] = "最终作品（用户提供文件）"
+    caption_by_id["final_artwork"] = "最终作品"
     preliminary_ids = [asset_id for asset_id in image_ids if asset_id.startswith("reconstructed_")]
     figure_number = 1
     for asset_id in preliminary_ids:
-        evidence = next(asset.evidence_level for asset in manifest.assets if asset.id == asset_id)
-        _add_image_with_caption(document, paths[asset_id], f"图 {figure_number} {caption_by_id.get(asset_id, asset_id)} {evidence}（非 Generation Version）", asset_id)
+        _add_image_with_caption(document, paths[asset_id], f"图 {figure_number} {caption_by_id.get(asset_id, asset_id)}", asset_id)
         figure_number += 1
 
     _add_heading(document, "五、AIGC 完整作品连续版本", 1)
@@ -272,23 +271,16 @@ def build_docx_from_manifest(manifest_path: str, output_docx_path: str) -> str:
         adjustment = json.loads(paths[record.adjustment_reason_asset_id].read_text(encoding="utf-8"))
         _add_body(document, "；".join(difference["priority_adjustments"]), label=f"V{index} 实际问题：")
         _add_body(document, "；".join(item["adjustment"] for item in adjustment["items"]), label="修改原因与动作：")
-        evidence = next(asset.evidence_level for asset in manifest.assets if asset.id == record.stage_id)
-        _add_image_with_caption(document, paths[record.stage_id], f"图 {figure_number} Generation V{index}：同一作品完整版本 {evidence}", record.stage_id)
+        _add_image_with_caption(document, paths[record.stage_id], f"图 {figure_number} Generation V{index}：同一作品完整版本", record.stage_id)
         figure_number += 1
 
     _add_heading(document, "六、Final Artwork", 1)
     _add_body(document, "Final 与最后一个 Generation Version 保持主体、构图与风格继承关系，承担最后精修或真实后期处理。")
-    final_evidence = next(asset.evidence_level for asset in manifest.assets if asset.id == "final_artwork")
-    _add_image_with_caption(document, paths["final_artwork"], f"图 {figure_number} Final Artwork {final_evidence}", "final_artwork")
+    _add_image_with_caption(document, paths["final_artwork"], f"图 {figure_number} Final Artwork", "final_artwork")
 
-    _add_heading(document, "七、版权、原创性与原始工具状态", 1)
-    for label, claim in (
-        ("版权状态：", manifest.provenance.copyright), ("原创性状态：", manifest.provenance.originality),
-        ("原始工具状态：", manifest.provenance.original_tool),
-    ):
-        source = f"；确认来源：{claim.confirmation_source}" if claim.confirmation_source else ""
-        _add_body(document, f"{claim.value} {claim.evidence_level}{source}", label=label)
-    _add_body(document, manifest.disclaimer)
+    if manifest.original_tool:
+        _add_heading(document, "七、创作工具说明", 1)
+        _add_body(document, manifest.original_tool, label="创作工具：")
 
     document.core_properties.author = ""
     document.core_properties.last_modified_by = ""
